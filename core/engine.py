@@ -50,6 +50,12 @@ class Portfolio:
     positions: Dict[str, Position]
     trade_history: List[TradeRecord]
     daily_values: List[Dict]
+    initial_capital: float = 0  # 新增：初始资金
+
+    def __post_init__(self):
+        """初始化后，如果initial_capital为0，设置为当前cash"""
+        if self.initial_capital == 0:
+            self.initial_capital = self.cash
 
     @property
     def total_market_value(self) -> float:
@@ -61,19 +67,13 @@ class Portfolio:
 
     @property
     def total_profit_loss(self) -> float:
-        if not self.daily_values:
-            return 0
-        initial_value = self.daily_values[0]['total_assets']
-        return self.total_assets - initial_value
+        return self.total_assets - self.initial_capital
 
     @property
     def total_return_pct(self) -> float:
-        if not self.daily_values:
+        if self.initial_capital == 0:
             return 0
-        initial_value = self.daily_values[0]['total_assets']
-        if initial_value == 0:
-            return 0
-        return ((self.total_assets - initial_value) / initial_value) * 100
+        return ((self.total_assets - self.initial_capital) / self.initial_capital) * 100
 
 
 class TradingEngine:
@@ -89,7 +89,8 @@ class TradingEngine:
             cash=initial_cash,
             positions={},
             trade_history=[],
-            daily_values=[]
+            daily_values=[],
+            initial_capital=initial_cash
         )
 
     def calculate_commission(self, amount: float, is_sell: bool = False) -> float:

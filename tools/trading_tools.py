@@ -1,27 +1,50 @@
 """
 交易工具集
-供AI Agent调用的交易工具
+供AI Agent调用的交易工具 - 时间感知版本
 """
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List
 from langchain.tools import tool
 
 
-class TradingTools:
-    """交易工具集合"""
+class TradingToolkit:
+    """时间感知的交易工具集"""
 
-    def __init__(self, engine, market_data_provider, current_date: str, available_stocks: List[Dict]):
+    def __init__(self, engine, market_data_provider, current_date: str):
+        """
+        初始化交易工具集
+
+        Args:
+            engine: 时间感知交易引擎
+            market_data_provider: 市场数据提供者
+            current_date: 当前日期 YYYYMMDD
+        """
         self.engine = engine
         self.market_data = market_data_provider
         self.current_date = current_date
-        self.available_stocks = available_stocks
-        self._stock_price_cache = {}
+        self._stock_cache = {}
 
-    def _get_stock_info(self, ts_code: str) -> Optional[Dict]:
-        """获取股票信息"""
-        for stock in self.available_stocks:
-            if stock['ts_code'] == ts_code:
-                return stock
-        return None
+    def update_current_date(self, new_date: str):
+        """更新当前日期"""
+        self.current_date = new_date
+        self._stock_cache = {}  # 清空缓存
+
+    def _get_stock_price(self, ts_code: str) -> Optional[Dict]:
+        """
+        获取股票价格（只能获取当前日期及之前的数据）
+
+        Returns:
+            Dict: 包含 open, close, high, low, volume, change
+        """
+        if ts_code in self._stock_cache:
+            return self._stock_cache[ts_code]
+
+        # 从JSON文件读取
+        price_data = self.market_data.get_stock_price_from_json(ts_code, self.current_date)
+
+        if price_data:
+            self._stock_cache[ts_code] = price_data
+
+        return price_data
 
     def get_tools(self):
         """返回工具列表"""
@@ -34,52 +57,78 @@ class TradingTools:
             Returns:
                 str: 投资组合详细信息
             """
-            summary = self.engine.get_portfolio_summary()
+            # 计算持仓市值
+            positions_value = 0
+            for ts_code, position in self.engine.portfolio.positions.items():
+                price_data = self._get_stock_price(ts_code)
+                if price_data:
+                    positions_value += position.shares * price_data['close']
 
-            result = f"投资组合状态:\n"
-            result += f"- 现金: ¥{summary['cash']:,.2f}\n"
-            result += f"- 持仓市值: ¥{summary['market_value']:,.2f}\n"
-            result += f"- 总资产: ¥{summary['total_assets']:,.2f}\n"
-            result += f"- 收益率: {summary['total_return_pct']:.2f}%\n"
-            result += f"- 持仓数量: {summary['positions_count']}只\n"
-            result += f"- 交易次数: {summary['trades_count']}次\n\n"
+            total_value = self.engine.portfolio.cash + positions_value
+            return_rate = (total_value - self.engine.portfolio.initial_capital) / self.engine.portfolio.initial_capital * 100
+
+            result = f"投资组合状态 (截至{self.current_date[:4]}-{self.current_date[4:6]}-{self.current_date[6:]}):\n"
+            result += f"- 现金: {self.engine.portfolio.cash:,.2f} RMB\n"
+            result += f"- 持仓市值: {positions_value:,.2f} RMB\n"
+            result += f"- 总资产: {total_value:,.2f} RMB\n"
+            result += f"- 收益率: {return_rate:.2f}%\n"
+            result += f"- 持仓数量: {len(self.engine.portfolio.positions)}只\n"
+            result += f"- 交易次数: {len(self.engine.portfolio.trade_history)}次\n\n"
 
             if self.engine.portfolio.positions:
                 result += "当前持仓:\n"
-                for ts_code, pos in self.engine.portfolio.positions.items():
-                    result += f"  {pos.name} ({pos.ts_code}): {pos.shares}股, "
-                    result += f"成本¥{pos.avg_price:.2f}, 现价¥{pos.current_price:.2f}, "
-                    result += f"盈亏{pos.profit_loss_pct:+.2f}%\n"
+                for ts_code, position in self.engine.portfolio.positions.items():
+                    price_data = self._get_stock_price(ts_code)
+                    if price_data:
+                        current_price = price_data['close']
+                        position_value = position.shares * current_price
+                        profit = position_value - (position.shares * position.avg_price)
+                        profit_rate = profit / (position.shares * position.avg_price) * 100
+
+                        result += f"  {ts_code}: {position.shares}股\n"
+                        result += f"    成本: {position.avg_price:.2f} RMB, 现价: {current_price:.2f} RMB\n"
+                        result += f"    市值: {position_value:,.2f} RMB, 盈亏: {profit:+,.2f} RMB ({profit_rate:+.2f}%)\n"
             else:
                 result += "当前无持仓\n"
 
             return result
 
         @tool
-        def get_available_stocks(limit: int = 20) -> str:
+        def get_available_stocks(limit: int = 50) -> str:
             """
-            获取可交易的股票列表。
+            获取可交易的A股列表（有历史数据的股票）。
 
             Args:
-                limit: 返回的股票数量，默认20只
+                limit: 返回的股票数量，默认50只
 
             Returns:
                 str: 股票列表信息
             """
-            stocks = self.available_stocks[:limit]
-            result = f"可交易股票 (前{len(stocks)}只):\n"
+            # 获取所有有JSON数据的股票
+            all_stocks = self.market_data.get_all_stocks_from_json()
 
-            for i, stock in enumerate(stocks, 1):
-                result += f"{i}. {stock['name']} ({stock['ts_code']}) - {stock['industry']}\n"
-                if 'close' in stock:
-                    result += f"   价格: ¥{stock['close']:.2f}, 涨跌: {stock.get('change', 0):+.2f}%\n"
+            if not all_stocks:
+                return "错误: 未找到可交易股票"
+
+            # 只返回前limit只
+            stocks = all_stocks[:limit]
+
+            result = f"可交易股票 (共{len(all_stocks)}只，显示前{len(stocks)}只):\n\n"
+
+            for i, ts_code in enumerate(stocks, 1):
+                # 获取当前价格
+                price_data = self._get_stock_price(ts_code)
+                if price_data:
+                    result += f"{i}. {ts_code}\n"
+                    result += f"   价格: {price_data['close']:.2f} RMB, "
+                    result += f"涨跌: {price_data.get('change', 0):+.2f}%\n"
 
             return result
 
         @tool
         def get_stock_price(ts_code: str) -> str:
             """
-            获取指定股票的当前价格和基本信息。
+            获取指定股票的当前价格和基本信息（只能看到当前日期的数据）。
 
             Args:
                 ts_code: 股票代码，如 '600000.SH'
@@ -87,28 +136,19 @@ class TradingTools:
             Returns:
                 str: 股票价格信息
             """
-            # 先从缓存中查找
-            if ts_code in self._stock_price_cache:
-                stock = self._stock_price_cache[ts_code]
-            else:
-                # 从available_stocks中查找
-                stock = self._get_stock_info(ts_code)
-                if stock:
-                    self._stock_price_cache[ts_code] = stock
+            price_data = self._get_stock_price(ts_code)
 
-            if not stock:
-                return f"错误: 未找到股票 {ts_code}"
+            if not price_data:
+                return f"错误: 未找到股票 {ts_code} 在日期 {self.current_date} 的价格数据"
 
-            result = f"股票信息:\n"
-            result += f"代码: {stock['ts_code']}\n"
-            result += f"名称: {stock['name']}\n"
-            result += f"行业: {stock.get('industry', '未知')}\n"
-
-            if 'close' in stock:
-                result += f"当前价格: ¥{stock['close']:.2f}\n"
-                result += f"涨跌幅: {stock.get('change', 0):+.2f}%\n"
-                result += f"最高: ¥{stock.get('high', 0):.2f}\n"
-                result += f"最低: ¥{stock.get('low', 0):.2f}\n"
+            result = f"股票价格 ({self.current_date[:4]}-{self.current_date[4:6]}-{self.current_date[6:]}):\n"
+            result += f"代码: {ts_code}\n"
+            result += f"日期: {price_data['date']}\n"
+            result += f"开盘: {price_data['open']:.2f} RMB\n"
+            result += f"最高: {price_data['high']:.2f} RMB\n"
+            result += f"最低: {price_data['low']:.2f} RMB\n"
+            result += f"收盘: {price_data['close']:.2f} RMB\n"
+            result += f"成交量: {price_data['volume']:,.0f}\n"
 
             return result
 
@@ -129,22 +169,18 @@ class TradingTools:
             if shares <= 0 or shares % 100 != 0:
                 return f"错误: 股数必须是100的正整数倍，当前: {shares}"
 
-            # 获取股票信息
-            stock = self._get_stock_info(ts_code)
-            if not stock:
-                return f"错误: 未找到股票 {ts_code}"
+            # 获取价格
+            price_data = self._get_stock_price(ts_code)
+            if not price_data:
+                return f"错误: 未找到股票 {ts_code} 的价格数据"
 
-            if 'close' not in stock:
-                return f"错误: 股票 {ts_code} 无价格数据"
-
-            price = stock['close']
-            name = stock['name']
+            price = price_data['close']
 
             # 执行买入
             success = self.engine.buy(
                 date=self.current_date,
                 ts_code=ts_code,
-                name=name,
+                name=ts_code,
                 price=price,
                 shares=shares,
                 reason=reason
@@ -156,18 +192,19 @@ class TradingTools:
                 total_cost = cost + commission
 
                 return (f"买入成功!\n"
-                       f"股票: {name} ({ts_code})\n"
-                       f"价格: ¥{price:.2f}\n"
+                       f"股票: {ts_code}\n"
+                       f"价格: {price:.2f} RMB\n"
                        f"股数: {shares}\n"
-                       f"成本: ¥{cost:,.2f}\n"
-                       f"手续费: ¥{commission:.2f}\n"
-                       f"总计: ¥{total_cost:,.2f}\n"
-                       f"剩余现金: ¥{self.engine.portfolio.cash:,.2f}")
+                       f"成本: {cost:,.2f} RMB\n"
+                       f"手续费: {commission:.2f} RMB\n"
+                       f"总计: {total_cost:,.2f} RMB\n"
+                       f"剩余现金: {self.engine.portfolio.cash:,.2f} RMB")
             else:
+                needed = price * shares + self.engine.calculate_commission(price * shares, is_sell=False)
                 return (f"买入失败!\n"
                        f"可能原因: 现金不足\n"
-                       f"需要: ¥{price * shares + self.engine.calculate_commission(price * shares):,.2f}\n"
-                       f"可用: ¥{self.engine.portfolio.cash:,.2f}")
+                       f"需要: {needed:,.2f} RMB\n"
+                       f"可用: {self.engine.portfolio.cash:,.2f} RMB")
 
         @tool
         def sell_stock(ts_code: str, shares: int, reason: str = "") -> str:
@@ -190,23 +227,22 @@ class TradingTools:
             if ts_code not in self.engine.portfolio.positions:
                 return f"错误: 无持仓 {ts_code}"
 
-            pos = self.engine.portfolio.positions[ts_code]
-            if pos.shares < shares:
-                return f"错误: 持仓不足，持有{pos.shares}股，尝试卖出{shares}股"
+            position = self.engine.portfolio.positions[ts_code]
+            if position.shares < shares:
+                return f"错误: 持仓不足，持有{position.shares}股，尝试卖出{shares}股"
 
             # 获取当前价格
-            stock = self._get_stock_info(ts_code)
-            if not stock or 'close' not in stock:
+            price_data = self._get_stock_price(ts_code)
+            if not price_data:
                 return f"错误: 无法获取股票价格"
 
-            price = stock['close']
-            name = stock['name']
+            price = price_data['close']
 
             # 执行卖出
             success = self.engine.sell(
                 date=self.current_date,
                 ts_code=ts_code,
-                name=name,
+                name=ts_code,
                 price=price,
                 shares=shares,
                 reason=reason
@@ -218,13 +254,13 @@ class TradingTools:
                 net_proceeds = proceeds - commission
 
                 return (f"卖出成功!\n"
-                       f"股票: {name} ({ts_code})\n"
-                       f"价格: ¥{price:.2f}\n"
+                       f"股票: {ts_code}\n"
+                       f"价格: {price:.2f} RMB\n"
                        f"股数: {shares}\n"
-                       f"收入: ¥{proceeds:,.2f}\n"
-                       f"手续费: ¥{commission:.2f}\n"
-                       f"净收入: ¥{net_proceeds:,.2f}\n"
-                       f"现金: ¥{self.engine.portfolio.cash:,.2f}")
+                       f"收入: {proceeds:,.2f} RMB\n"
+                       f"手续费: {commission:.2f} RMB\n"
+                       f"净收入: {net_proceeds:,.2f} RMB\n"
+                       f"现金: {self.engine.portfolio.cash:,.2f} RMB")
             else:
                 return "卖出失败!"
 
