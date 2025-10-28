@@ -1,16 +1,24 @@
 """
-AI交易竞赛主程序
-运行多个AI Agent进行模拟交易比赛
+AI交易竞赛主程序 - 重构版
+使用LangChain Agent和Tools系统
 """
 import json
 import os
+import tushare as ts
 from datetime import datetime
 from typing import List, Dict
-from trading_engine import TradingEngine, MarketDataProvider
-from trading_agents import (
-    BaseTradingAgent, DeepSeekAgent, GPT4Agent, ClaudeAgent, RandomAgent,
-    MarketContext, TradingDecision
-)
+from dotenv import load_dotenv
+
+from core import TradingEngine, MarketDataProvider
+from tools import TradingTools
+from agents import BaseTradingAgent, DeepSeekAgent
+
+load_dotenv()
+
+# 配置Tushare
+TUSHARE_API_KEY = os.getenv("TUSHARE_API_KEY")
+ts.set_token(TUSHARE_API_KEY)
+pro = ts.pro_api()
 
 
 class TradingCompetition:
@@ -40,7 +48,7 @@ class TradingCompetition:
         print("=" * 70)
 
         # 获取交易日列表
-        trading_dates = MarketDataProvider.get_recent_trading_dates(self.trading_days)
+        trading_dates = MarketDataProvider.get_recent_trading_dates(pro, self.trading_days)
         if not trading_dates:
             print("无法获取交易日数据")
             return
@@ -48,7 +56,7 @@ class TradingCompetition:
         print(f"\n交易周期: {trading_dates[0]} - {trading_dates[-1]}")
 
         # 获取可交易股票列表
-        stock_pool = MarketDataProvider.get_stock_list(limit=50)
+        stock_pool = MarketDataProvider.get_stock_list(pro, limit=50)
         if not stock_pool:
             print("无法获取股票列表")
             return
@@ -69,6 +77,7 @@ class TradingCompetition:
 
             # 每个Agent进行决策和交易
             for agent in self.agents:
+                print(f"\n[{agent.name}] 开始决策...")
                 self._process_agent_trading(
                     agent=agent,
                     engine=self.engines[agent.name],
@@ -87,7 +96,7 @@ class TradingCompetition:
         stocks_with_price = []
 
         for stock in stock_pool:
-            price_data = MarketDataProvider.get_stock_price(stock['ts_code'], trade_date)
+            price_data = MarketDataProvider.get_stock_price(pro, stock['ts_code'], trade_date)
             if price_data:
                 stock_info = stock.copy()
                 stock_info.update(price_data)
@@ -98,99 +107,53 @@ class TradingCompetition:
     def _process_agent_trading(self, agent: BaseTradingAgent, engine: TradingEngine,
                                 trade_date: str, stocks_with_price: List[Dict]):
         """处理Agent的交易"""
-        # 准备市场上下文
-        context = MarketContext(
-            date=trade_date,
-            available_stocks=stocks_with_price,
-            current_portfolio=self._get_portfolio_info(engine, stocks_with_price),
-            market_data={}
-        )
-
-        # Agent做出决策
-        decision = agent.make_decision(context)
-
-        # 执行交易
-        self._execute_decision(agent, engine, trade_date, decision, stocks_with_price)
-
-    def _get_portfolio_info(self, engine: TradingEngine,
-                            stocks_with_price: List[Dict]) -> Dict:
-        """获取投资组合信息"""
         # 更新持仓价格
         price_map = {s['ts_code']: s['close'] for s in stocks_with_price}
-        engine.update_positions_price("", price_map)
+        engine.update_positions_price(trade_date, price_map)
 
-        # 获取摘要
+        # 创建交易工具
+        trading_tools = TradingTools(
+            engine=engine,
+            market_data_provider=None,
+            current_date=trade_date,
+            available_stocks=stocks_with_price
+        )
+        tools = trading_tools.get_tools()
+
+        # 初始化Agent（如果还没有）
+        if not agent.agent_executor:
+            agent.create_agent(tools)
+
+        # 构建上下文
+        context = self._build_context(engine, stocks_with_price, trade_date)
+
+        # Agent做出决策并执行
+        try:
+            result = agent.make_decision(context)
+            print(f"[{agent.name}] 决策完成")
+            # print(f"结果: {result[:200]}...")  # 打印部分结果
+        except Exception as e:
+            print(f"[{agent.name}] 决策失败: {e}")
+
+    def _build_context(self, engine: TradingEngine, stocks_with_price: List[Dict],
+                      trade_date: str) -> str:
+        """构建市场上下文"""
         summary = engine.get_portfolio_summary()
 
-        # 添加详细持仓信息
-        positions = []
-        for ts_code, pos in engine.portfolio.positions.items():
-            positions.append({
-                'ts_code': pos.ts_code,
-                'name': pos.name,
-                'shares': pos.shares,
-                'avg_price': pos.avg_price,
-                'current_price': pos.current_price,
-                'market_value': pos.market_value,
-                'profit_loss': pos.profit_loss,
-                'profit_loss_pct': pos.profit_loss_pct
-            })
+        context = f"""交易日期: {trade_date}
 
-        summary['positions'] = positions
-        return summary
+请分析当前投资组合状态和市场情况，做出交易决策。
 
-    def _execute_decision(self, agent: BaseTradingAgent, engine: TradingEngine,
-                          trade_date: str, decision: TradingDecision,
-                          stocks_with_price: List[Dict]):
-        """执行交易决策"""
-        action_str = f"  [{agent.name}] "
+注意事项：
+1. 可以通过工具查看详细的投资组合状态、可交易股票列表、股票价格
+2. 买入时股数必须是100的倍数
+3. 建议分散投资，单只股票不超过总资产30%
+4. 当前总资产: ¥{summary['total_assets']:,.2f}
+5. 可用现金: ¥{summary['cash']:,.2f}
 
-        if decision.action == 'buy' and decision.ts_code and decision.shares:
-            # 查找股票信息
-            stock = next((s for s in stocks_with_price if s['ts_code'] == decision.ts_code), None)
-            if stock:
-                success = engine.buy(
-                    date=trade_date,
-                    ts_code=decision.ts_code,
-                    name=stock['name'],
-                    price=stock['close'],
-                    shares=decision.shares,
-                    reason=decision.reason
-                )
+请使用工具进行分析和交易决策。"""
 
-                if success:
-                    action_str += f"买入 {stock['name']} {decision.shares}股 @ ¥{stock['close']:.2f}"
-                    print(action_str)
-                    print(f"       理由: {decision.reason[:60]}...")
-                else:
-                    print(action_str + "买入失败")
-
-        elif decision.action == 'sell' and decision.ts_code and decision.shares:
-            # 查找持仓
-            if decision.ts_code in engine.portfolio.positions:
-                pos = engine.portfolio.positions[decision.ts_code]
-                stock = next((s for s in stocks_with_price if s['ts_code'] == decision.ts_code), None)
-
-                if stock:
-                    success = engine.sell(
-                        date=trade_date,
-                        ts_code=decision.ts_code,
-                        name=stock['name'],
-                        price=stock['close'],
-                        shares=min(decision.shares, pos.shares),
-                        reason=decision.reason
-                    )
-
-                    if success:
-                        action_str += f"卖出 {stock['name']} {decision.shares}股 @ ¥{stock['close']:.2f}"
-                        print(action_str)
-                        print(f"       理由: {decision.reason[:60]}...")
-                    else:
-                        print(action_str + "卖出失败")
-
-        else:
-            # 持有
-            print(action_str + "持有")
+        return context
 
     def _update_daily_values(self, trade_date: str, stocks_with_price: List[Dict]):
         """更新每日资产价值"""
@@ -281,12 +244,25 @@ def main():
     )
 
     # 注册参赛Agent
-    competition.register_agent(DeepSeekAgent())
-    competition.register_agent(RandomAgent())  # 基准Agent
+    try:
+        competition.register_agent(DeepSeekAgent())
+    except Exception as e:
+        print(f"注册DeepSeek Agent失败: {e}")
 
     # 可选：注册更多Agent
-    # competition.register_agent(GPT4Agent())
-    # competition.register_agent(ClaudeAgent())
+    # try:
+    #     competition.register_agent(GPT4Agent())
+    # except Exception as e:
+    #     print(f"注册GPT-4 Agent失败: {e}")
+
+    # try:
+    #     competition.register_agent(ClaudeAgent())
+    # except Exception as e:
+    #     print(f"注册Claude Agent失败: {e}")
+
+    if len(competition.agents) == 0:
+        print("错误: 没有成功注册任何Agent")
+        return
 
     # 运行竞赛
     competition.run_competition()

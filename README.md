@@ -1,57 +1,50 @@
 # AI-Trader A股竞赛
 
-**AI模型交易大赛** - 让不同的AI大模型在A股市场上一决高下！
+**AI模型交易大赛** - 让不同的AI大模型通过调用工具在A股市场上PK！
 
 ## 项目简介
 
-这是一个AI交易竞赛平台，让多个AI大模型（如DeepSeek, GPT-4, Claude等）作为交易Agent，在模拟的A股市场中进行实盘交易对比。每个AI模型获得100万初始资金，在最近10个交易日的真实市场数据中进行交易，看谁能获得最高收益！
+这是一个基于LangChain Agent框架的AI交易竞赛平台。不同的AI大模型（如DeepSeek, GPT-4, Claude等）作为交易Agent，通过调用真实的交易工具（Tools）在模拟的A股市场中进行实盘交易对比。
 
-## 在线演示
+每个AI Agent获得100万初始资金，在最近10个交易日的真实市场数据中：
+- 通过调用 `get_portfolio_status` 查看持仓
+- 通过调用 `get_available_stocks` 查看可交易股票
+- 通过调用 `buy_stock` / `sell_stock` 执行交易
 
-访问：`https://yourusername.github.io/AI-Trader-AShare/`
+看哪个AI模型能获得最高收益！
 
 ## 核心特性
 
-- 🤖 **多模型对战** - 支持DeepSeek, GPT-4, Claude等多个LLM模型同时竞赛
+- 🤖 **真正的Agent系统** - 基于LangChain Agent框架，AI通过调用Tools完成交易
+- 🛠️ **完整的工具集** - 提供查询持仓、获取股票列表、买入卖出等交易工具
 - 💰 **真实模拟** - 100万初始资金，真实A股历史数据，完整的交易费用计算
-- 📊 **可视化对比** - 实时资产走势图，排行���，详细的交易记录
+- 📊 **可视化对比** - 实时资产走势图，排行榜，详细的交易记录
 - 🔄 **自动化运行** - GitHub Actions每日自动运行竞赛并更新结果
-- 📈 **专业系统** - 完整的持仓管理，佣金/印花税计算，风险控制
 
-## 竞赛规则
-
-### 初始条件
-- **初始资金**: 100万人民币
-- **交易周期**: 最近10个交易日
-- **可交易股票**: A股市值前50名股票
-
-### 交易规则
-- **最小交易单位**: 100股（1手）
-- **佣金**: 0.03%，最低5元
-- **印花税**: 0.1%（仅卖出时收取）
-- **T+0限制**: 无（简化模拟）
-
-### 评分标准
-- **主要指标**: 总收益率（最终资产 / 初始资金 - 1）
-- **次要考虑**: 交易次数，风险控制，持仓分散度
-
-## 项目结构
+## 项目架构
 
 ```
 AI-Trader-AShare/
-├── trading_engine.py          # 交易引擎核心
-├── trading_agents.py          # AI交易Agent实现
+├── core/                      # 核心模块
+│   ├── engine.py             # 交易引擎（持仓管理、费用计算）
+│   └── market_data.py        # 市场数据提供者（Tushare接口）
+│
+├── tools/                     # 交易工具模块
+│   └── trading_tools.py      # AI Agent调用的交易工具集
+│
+├── agents/                    # AI Agent模块
+│   ├── base_agent.py         # Agent基类
+│   └── llm_agents.py         # 各种LLM Agent实现
+│
 ├── run_competition.py         # 竞赛主程序
+├── test_new_agent.py          # Agent测试脚本
+│
 ├── docs/                      # GitHub Pages部署
 │   ├── index.html            # 竞赛结果页面
 │   ├── css/style.css
 │   ├── js/competition.js
 │   └── data/                 # 竞赛结果数据
-│       ├── competition_summary.json
-│       ├── agent_deepseek_trader.json
-│       └── agent_*.json
-├── scripts/
-│   └── fetch_market_data.py  # 市场数据获取
+│
 └── .github/workflows/
     ├── competition.yml       # 竞赛自动运行
     └── deploy.yml           # 页面部署
@@ -71,237 +64,237 @@ uv pip install tushare pandas python-dotenv openai langchain langchain-openai
 
 # 配置API Keys（创建.env文件）
 cp .env.example .env
-# 编辑.env填入你的API Keys:
-# - TUSHARE_API_KEY: Tushare数据接口
-# - SILICONFLOW_API_KEY: DeepSeek模型接口
-# - OPENROUTER_API_KEY: 其他模型接口（可选）
+# 编辑.env填入你的API Keys
 
-# 运行竞赛
+# 测试单个Agent
+python test_new_agent.py
+
+# 运行完整竞赛
 python run_competition.py
 ```
 
 ### 2. 查看结果
 
-竞赛运行后，结果会保存在`docs/data/`目录：
-
 ```bash
-# 启动本地服务器
 cd docs
 python -m http.server 8000
-
-# 访问 http://localhost:8000 查看可视化结果
+# 访问 http://localhost:8000
 ```
 
-### 3. GitHub 部署
+## Agent架构设计
 
-1. **Fork 本项目**
+### 1. 核心组件
 
-2. **配置 Secrets**（Settings > Secrets and variables > Actions）:
-   - `TUSHARE_API_KEY`
-   - `SILICONFLOW_API_KEY`
-   - `OPENROUTER_API_KEY`（可选）
+**交易引擎 (core/engine.py)**
+- `TradingEngine`: 处理买卖、计算费用、管理持仓
+- `Portfolio`: 投资组合管理
+- `Position`: 个股持仓信息
 
-3. **启用 GitHub Pages**（Settings > Pages > Source: GitHub Actions）
+**交易工具 (tools/trading_tools.py)**
+```python
+@tool
+def get_portfolio_status() -> str:
+    """获取当前投资组合状态"""
+    pass
 
-4. **触发竞赛**:
-   - 自动：每天UTC 00:00自动运行
-   - 手动：Actions > AI交易竞赛 > Run workflow
+@tool
+def buy_stock(ts_code: str, shares: int, reason: str) -> str:
+    """买入股票"""
+    pass
+
+@tool
+def sell_stock(ts_code: str, shares: int, reason: str) -> str:
+    """卖出股票"""
+    pass
+```
+
+**AI Agent (agents/)**
+```python
+class DeepSeekAgent(LLMTradingAgent):
+    def create_agent(self, tools):
+        # 使用LangChain的create_react_agent
+        agent = create_react_agent(
+            llm=self.llm,
+            tools=tools,
+            prompt=prompt
+        )
+        return AgentExecutor(agent=agent, tools=tools)
+```
+
+### 2. 工作流程
+
+```
+1. 竞赛开始
+   ↓
+2. 获取交易日和股票池数据
+   ↓
+3. 对每个交易日：
+   ├─ 为Agent提供交易工具
+   ├─ Agent分析市场（调用get_portfolio_status等）
+   ├─ Agent做决策（调用buy_stock/sell_stock）
+   └─ 更新持仓和资产
+   ↓
+4. 生成竞赛报告
+```
+
+### 3. Agent决策过程（ReAct模式）
+
+```
+Question: 当前市场情况和任务
+
+Thought: 我需要先查看投资组合状态
+Action: get_portfolio_status
+Action Input:
+Observation: 现金 ¥1,000,000.00...
+
+Thought: 再看看可交易的股票
+Action: get_available_stocks
+Action Input: {"limit": 20}
+Observation: 1. 农业银行 (601288.SH)...
+
+Thought: 我决定买入农业银行
+Action: buy_stock
+Action Input: {"ts_code": "601288.SH", "shares": 10000, "reason": "..."}
+Observation: 买入成功! 股票: 农业银行...
+
+Thought: 交易完成
+Final Answer: 已买入农业银行10000股...
+```
 
 ## 添加新的AI模型
 
-在`trading_agents.py`中添加新的Agent类：
+### 1. 在 `agents/llm_agents.py` 添加新Agent
 
 ```python
 class YourModelAgent(LLMTradingAgent):
-    """你的AI模型"""
-
-    def __init__(self, name: str = "Your Model Trader", initial_cash: float = 1000000):
+    def __init__(self, name: str = "Your Model Trader"):
         api_key = os.getenv("YOUR_API_KEY")
         super().__init__(
             name=name,
             model_name="your-model-name",
             api_key=api_key,
-            base_url="https://your-api-base-url",
-            initial_cash=initial_cash
+            base_url="https://your-api-url"
         )
 ```
 
-然后在`run_competition.py`中注册：
+### 2. 在 `run_competition.py` 注册Agent
 
 ```python
-def main():
-    competition = TradingCompetition(initial_cash=1000000, trading_days=10)
-
-    # 注册你的Agent
-    competition.register_agent(DeepSeekAgent())
-    competition.register_agent(YourModelAgent())  # 新增
-    competition.register_agent(RandomAgent())
-
-    competition.run_competition()
+competition.register_agent(YourModelAgent())
 ```
 
-## 系统架构
+## 可用交易工具
 
-### 交易引擎 (trading_engine.py)
+| 工具名称 | 功能 | 参数 |
+|---------|------|------|
+| `get_portfolio_status` | 获取投资组合状态 | 无 |
+| `get_available_stocks` | 获取可交易股票列表 | limit: int |
+| `get_stock_price` | 获取股票价格信息 | ts_code: str |
+| `buy_stock` | 买入股票 | ts_code, shares, reason |
+| `sell_stock` | 卖出股票 | ts_code, shares, reason |
+
+## 技术栈
+
+- **Agent框架**: LangChain + ReAct模式
+- **LLM接口**: OpenAI SDK (兼容多个API)
+- **数据源**: Tushare Pro API
+- **前端**: HTML5 + Chart.js
+- **部署**: GitHub Pages + GitHub Actions
+
+## 与原设计的区别
+
+### ❌ 旧设计（解析JSON）
 
 ```python
-# 核心组件
-- TradingEngine: 处理买卖交易，计算费用，管理持仓
-- Portfolio: 投资组合管理，资产计算
-- Position: 个股持仓信息
-- TradeRecord: 交易记录
-- MarketDataProvider: 获取Tushare市场数据
+# AI输出JSON字符串
+response = llm.chat("分析市场...")
+decision = json.loads(response)  # 解析JSON
+
+# 手动执行
+if decision['action'] == 'buy':
+    engine.buy(...)
 ```
 
-### AI Agent (trading_agents.py)
+问题：
+- AI可能输出不规范的JSON
+- 需要手动解析和执行
+- 工具调用链路不清晰
+
+### ✅ 新设计（Tool Calling）
 
 ```python
-# Agent类型
-- BaseTradingAgent: 抽象基类
-- LLMTradingAgent: 基于LLM的Agent
-  - DeepSeekAgent: DeepSeek-V3.2
-  - GPT4Agent: GPT-4o
-  - ClaudeAgent: Claude-3.5-Sonnet
-- RandomAgent: 随机策略（基准）
+# AI直接调用工具
+agent.create_agent(tools=[get_portfolio, buy_stock, ...])
+result = agent.make_decision(context)
+
+# LangChain自动处理tool calling
+# Agent自己决定调用哪些工具、何时调用
 ```
 
-### 竞赛管理器 (run_competition.py)
+优势：
+- 标准化的Tool接口
+- 自动处理工具调用和结果
+- 支持多轮对话和思考链
+- 更符合Agent范式
 
-```python
-# 主要流程
-1. 注册参赛Agents
-2. 获取交易日和股票池
-3. 逐日模拟：
-   - 获取当日价格
-   - 每个Agent做决策
-   - 执行交易
-   - 更新资产
-4. 生成竞赛报告
-5. 保存结果JSON
+## 示例：Agent执行日志
+
 ```
+[DeepSeek Trader] 开始决策...
 
-## API使用说明
+> Entering new AgentExecutor chain...
 
-### Tushare Pro API
+Thought: 我需要先了解当前的投资组合状态
+Action: get_portfolio_status
+Action Input:
 
-获取A股市场数据：
-- 注册：https://tushare.pro/register
-- 文档：https://tushare.pro/document/2
+Observation: 投资组合状态:
+- 现金: ¥1,000,000.00
+- 持仓市值: ¥0.00
+...
 
-主要接口：
-- `pro.trade_cal()` - 交易日历
-- `pro.stock_basic()` - 股票列表
-- `pro.daily()` - 日线数据
-- `pro.daily_basic()` - 每日指标
+Thought: 现在查看可交易的股票列表
+Action: get_available_stocks
+Action Input: {"limit": 10}
 
-### LLM API
+Observation: 可交易股票 (前10只):
+1. 农业银行 (601288.SH) - 银行
+   价格: ¥3.89, 涨跌: +0.52%
+...
 
-**SiliconFlow** (推荐用于DeepSeek):
-- 注册：https://siliconflow.cn
-- 模型：deepseek-ai/DeepSeek-V3.2-Exp
-- 价格：便宜且快速
+Thought: 我决定买入农业银行
+Action: buy_stock
+Action Input: {"ts_code": "601288.SH", "shares": 10000, "reason": "银行股估值低..."}
 
-**OpenRouter** (支持多种模型):
-- 注册：https://openrouter.ai
-- 支持：GPT-4, Claude, Gemini等
-- 按量付费
+Observation: 买入成功!
+股票: 农业银行 (601288.SH)
+...
 
-## 数据格式
+> Finished chain.
 
-### competition_summary.json
-
-```json
-{
-  "start_date": "20251015",
-  "end_date": "20251028",
-  "trading_days": 10,
-  "initial_cash": 1000000,
-  "agents_count": 2,
-  "last_update": "2025-10-28 00:00:00",
-  "rankings": [
-    {
-      "name": "DeepSeek Trader",
-      "model": "deepseek-ai/DeepSeek-V3.2-Exp",
-      "final_assets": 1025000.00,
-      "return_pct": 2.50,
-      "trades_count": 15
-    }
-  ]
-}
+[DeepSeek Trader] 决策完成
 ```
-
-### agent_*.json
-
-```json
-{
-  "agent_name": "DeepSeek Trader",
-  "model_name": "deepseek-ai/DeepSeek-V3.2-Exp",
-  "initial_cash": 1000000,
-  "summary": {
-    "cash": 150000,
-    "market_value": 875000,
-    "total_assets": 1025000,
-    "total_profit_loss": 25000,
-    "total_return_pct": 2.50,
-    "positions_count": 3,
-    "trades_count": 15
-  },
-  "positions": [...],
-  "trade_history": [...],
-  "daily_values": [...]
-}
-```
-
-## 自定义配置
-
-### 修改竞赛参数
-
-编辑`run_competition.py`:
-
-```python
-competition = TradingCompetition(
-    initial_cash=2000000,  # 改为200万
-    trading_days=20       # 改为20个交易日
-)
-```
-
-### 修改股票池
-
-编辑`trading_engine.py`:
-
-```python
-stock_pool = MarketDataProvider.get_stock_list(limit=100)  # 改为100只
-```
-
-### 调整Agent策略
-
-在`trading_agents.py`中修改`system_prompt`来改变AI的交易策略。
 
 ## 常见问题
 
-### Q: 竞赛运行需要多长时间？
-A: 取决于AI模型和交易天数，通常10天的竞赛需要5-15分钟。
+### Q: 为什么要用LangChain Agent？
+A: Agent框架提供标准化的Tool接口，AI可以自主决定何时调用哪些工具，更符合真实的交易决策过程。
 
-### Q: 可以使用免费的LLM API吗？
-A: 可以，OpenRouter提供一些免费模型，或使用本地部署的模型。
+### Q: Agent会无限循环调用工具吗？
+A: 不会，AgentExecutor有max_iterations限制（默认10次）。
 
-### Q: 如何确保AI决策的公平性？
-A: 所有AI获得相同的市场信息，使用相同的交易规则和费率。
+### Q: 如何调试Agent的决策过程？
+A: 设置`verbose=True`可以看到完整的思考链和工具调用过程。
 
-### Q: 为什么结果每次运行会不同？
-A: AI模型有随机性（temperature参数），且市场数据在变化。
+### Q: 可以添加更多工具吗？
+A: 可以！在`tools/trading_tools.py`中添加新的`@tool`装饰的函数即可。
 
-### Q: 可以用于实盘交易吗？
-A: **不可以！** 这只是研究和教育项目，实盘交易风险极高。
+## GitHub 部署
 
-## 贡献指南
-
-欢迎贡献：
-- 新的AI Agent实现
-- 更复杂的交易策略
-- 风险管理功能
-- UI优化
-- Bug修复
+1. Fork本项目
+2. 配置Secrets: `TUSHARE_API_KEY`, `SILICONFLOW_API_KEY`
+3. 启用GitHub Pages
+4. Actions会每天自动运行竞赛
 
 ## 许可证
 
@@ -309,16 +302,11 @@ MIT License
 
 ## 致谢
 
+- [LangChain](https://python.langchain.com/) - Agent框架
 - [Tushare](https://tushare.pro/) - 金融数据API
-- [SiliconFlow](https://siliconflow.cn) - DeepSeek API服务
-- [OpenRouter](https://openrouter.ai) - 多模型API聚合
+- [SiliconFlow](https://siliconflow.cn) - DeepSeek API
 - [Chart.js](https://www.chartjs.org/) - 图表库
-- [AI-Trader](https://hkuds.github.io/AI-Trader/) - 设计灵感
 
 ## 免责声明
 
-本项目仅用于教育和研究目的。历史表现不代表未来收益。投资有风险，入市需谨慎。项目作者不对任何投资损失负责。
-
-## 联系方式
-
-问题或建议：[提交Issue](https://github.com/yourusername/AI-Trader-AShare/issues)
+本项目仅用于教育和研究。不构成投资建议。
