@@ -26,13 +26,16 @@ class MarketDataProvider:
     @staticmethod
     def get_recent_trading_dates(pro_api, n_days: int = 10) -> List[str]:
         """获取最近N个交易日"""
+        # 使用最近3个月的数据，确保能获取到足够的交易日
         end_date = datetime.now()
-        start_date = end_date - timedelta(days=n_days * 2)
+        start_date = end_date - timedelta(days=90)
 
         start_str = start_date.strftime('%Y%m%d')
         end_str = end_date.strftime('%Y%m%d')
 
         dates = MarketDataProvider.get_trading_dates(pro_api, start_str, end_str)
+
+        # 返回最近的N个交易日（已排序，从旧到新）
         return dates[-n_days:] if len(dates) >= n_days else dates
 
     @staticmethod
