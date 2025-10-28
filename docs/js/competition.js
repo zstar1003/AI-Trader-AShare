@@ -1,306 +1,400 @@
-// AI交易竞赛结果可视化脚本
+// AI-Trader Competition Dashboard
 
-let performanceChart = null;
-let competitionData = {};
-let agentsData = {};
+let globalAgentData = {};
+let chart = null;
 
-// 颜色配置
-const COLORS = [
-    '#2563eb', '#dc2626', '#16a34a', '#ea580c', '#9333ea',
-    '#0891b2', '#db2777', '#65a30d', '#ca8a04', '#7c3aed'
-];
+// 名称映射：将内部名称转换为显示名称
+const AGENT_NAME_MAP = {
+    'DeepSeek_Trader': 'DeepSeek',
+    'GPT4_Trader': 'GPT-4',
+    'Claude_Trader': 'Claude',
+    // 可以继续添加更多映射
+};
+
+// 获取显示名称
+function getDisplayName(agentName) {
+    return AGENT_NAME_MAP[agentName] || agentName;
+}
 
 // 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    loadCompetitionData();
-    setupEventListeners();
+document.addEventListener('DOMContentLoaded', async() => {
+    await loadAgentData();
+    renderDashboard();
 });
 
-// 加载竞赛数据
-async function loadCompetitionData() {
+// 加载Agent数据
+async function loadAgentData() {
     try {
-        // 加载竞赛摘要
-        const summary = await fetchJSON('data/competition_summary.json');
-        competitionData = summary;
-        updateSummary(summary);
-        renderRankings(summary.rankings);
+        // 尝试从多个可能的路径加载数据
+        const agentFiles = ['DeepSeek_Trader']; // 可以扩展更多agent
 
-        // 加载每个Agent的详细数据
-        await loadAgentsData(summary.rankings);
+        for (const agentName of agentFiles) {
+            try {
+                // 首先尝试从 data/agent_data/ 加载
+                let response = await fetch(`../data/agent_data/${agentName}_state.json`);
+                if (!response.ok) {
+                    // 如果失败，尝试从 docs/data/ 加载
+                    response = await fetch(`data/${agentName}_state.json`);
+                }
 
-        // 渲染图表和详情
-        renderPerformanceChart();
-        renderAgentsDetails();
-
-    } catch (error) {
-        console.error('加载数据失败:', error);
-        showError('数据加载失败，请稍后重试');
-    }
-}
-
-// 获取JSON数据
-async function fetchJSON(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-}
-
-// 加载所有Agent的详细数据
-async function loadAgentsData(rankings) {
-    const promises = rankings.map(async (ranking) => {
-        const filename = `agent_${ranking.name.replace(/ /g, '_').toLowerCase()}.json`;
-        try {
-            const data = await fetchJSON(`data/${filename}`);
-            agentsData[ranking.name] = data;
-        } catch (error) {
-            console.error(`加载${ranking.name}数据失败:`, error);
+                if (response.ok) {
+                    const data = await response.json();
+                    globalAgentData[agentName] = data;
+                }
+            } catch (e) {
+                console.warn(`Failed to load ${agentName}:`, e);
+            }
         }
+
+        console.log('Loaded agent data:', Object.keys(globalAgentData));
+    } catch (error) {
+        console.error('Error loading agent data:', error);
+    }
+}
+
+// 渲染整个Dashboard
+function renderDashboard() {
+    if (Object.keys(globalAgentData).length === 0) {
+        showError('暂无数据');
+        return;
+    }
+
+    // 更新统计信息
+    updateStats();
+
+    // 渲染图表
+    renderChart();
+
+    // 渲染排行榜
+    renderRankings();
+
+    // 渲染交易记录
+    setupTradesList();
+}
+
+// 更新顶部统计
+function updateStats() {
+    const agentCount = Object.keys(globalAgentData).length;
+    const returns = Object.values(globalAgentData).map(agent => {
+        const dailyValues = Object.values(agent.daily_snapshots || {});
+        if (dailyValues.length === 0) return 0;
+        const lastValue = dailyValues[dailyValues.length - 1];
+        return ((lastValue.total_value - agent.initial_capital) / agent.initial_capital * 100);
     });
+    const bestReturn = Math.max(...returns);
 
-    await Promise.all(promises);
+    // 计算交易周期
+    const firstAgent = Object.values(globalAgentData)[0];
+    const startDate = firstAgent.simulation_start_date || '-';
+    const currentDate = firstAgent.simulation_current_date || '-';
+    const tradingPeriod = formatTradingPeriod(startDate, currentDate);
+
+    document.getElementById('agents-count').textContent = agentCount;
+    document.getElementById('trading-period').textContent = tradingPeriod;
+
+    const bestReturnEl = document.getElementById('best-return');
+    bestReturnEl.textContent = `${bestReturn >= 0 ? '+' : ''}${bestReturn.toFixed(2)}%`;
+    bestReturnEl.className = `stat-value ${bestReturn >= 0 ? 'positive' : 'negative'}`;
+
+    // 更新最后更新时间
+    const lastUpdate = firstAgent.last_update || '-';
+    document.getElementById('last-update').textContent = lastUpdate;
 }
 
-// 更新摘要信息
-function updateSummary(summary) {
-    document.getElementById('agents-count').textContent = summary.agents_count || 0;
-    document.getElementById('initial-cash').textContent = `¥${formatNumber(summary.initial_cash)}`;
-    document.getElementById('trading-period').textContent =
-        `${formatDate(summary.start_date)} - ${formatDate(summary.end_date)}`;
+// 格式化交易周期
+function formatTradingPeriod(startDate, endDate) {
+    if (!startDate || !endDate) return '-';
+    const start = formatDate(startDate);
+    const end = formatDate(endDate);
 
-    // 最佳收益率
-    const bestReturn = summary.rankings && summary.rankings.length > 0
-        ? summary.rankings[0].return_pct
-        : 0;
-    const returnEl = document.getElementById('best-return');
-    returnEl.textContent = `${bestReturn >= 0 ? '+' : ''}${bestReturn.toFixed(2)}%`;
-    returnEl.className = 'metric-value ' + (bestReturn >= 0 ? 'positive' : 'negative');
+    // 计算天数
+    const days = Object.values(globalAgentData)[0].daily_snapshots ?
+        Object.keys(Object.values(globalAgentData)[0].daily_snapshots).length : 0;
 
-    document.getElementById('last-update').textContent = summary.last_update || '-';
+    return `${days}天 (${start} - ${end})`;
 }
 
-// 渲染排行榜
-function renderRankings(rankings) {
-    const container = document.getElementById('rankings-list');
-    container.innerHTML = '';
-
-    rankings.forEach((ranking, index) => {
-        const rank = index + 1;
-        const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-other';
-        const returnClass = ranking.return_pct >= 0 ? 'positive' : 'negative';
-
-        const rankBadge = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
-
-        const item = document.createElement('div');
-        item.className = `ranking-item rank-${rank}`;
-        item.innerHTML = `
-            <div class="rank-badge ${rankClass}">${rankBadge}</div>
-            <div class="ranking-info">
-                <div class="ranking-name">${ranking.name}</div>
-                <div class="ranking-model">${ranking.model}</div>
-            </div>
-            <div class="ranking-stats">
-                <div class="ranking-return ${returnClass}">
-                    ${ranking.return_pct >= 0 ? '+' : ''}${ranking.return_pct.toFixed(2)}%
-                </div>
-                <div class="ranking-details">
-                    <div>最终资产: ¥${formatNumber(ranking.final_assets)}</div>
-                    <div>交易次数: ${ranking.trades_count}</div>
-                </div>
-            </div>
-        `;
-
-        container.appendChild(item);
-    });
-}
-
-// 渲染资产走势图
-function renderPerformanceChart() {
+// 渲染图表
+function renderChart() {
     const ctx = document.getElementById('performance-chart').getContext('2d');
 
-    const datasets = Object.entries(agentsData).map(([name, data], index) => {
-        return {
-            label: name,
-            data: data.daily_values.map(d => ({
-                x: formatDate(d.date),
-                y: d.total_assets
-            })),
-            borderColor: COLORS[index % COLORS.length],
-            backgroundColor: COLORS[index % COLORS.length] + '20',
-            borderWidth: 3,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            tension: 0.2
-        };
-    });
+    const datasets = [];
+    const colors = [
+        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+        '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+    ];
 
-    performanceChart = new Chart(ctx, {
+    let colorIndex = 0;
+    for (const [agentName, agent] of Object.entries(globalAgentData)) {
+        const snapshots = agent.daily_snapshots || {};
+        const dates = Object.keys(snapshots).sort();
+
+        const data = dates.map(date => {
+            const snapshot = snapshots[date];
+            const returnPct = ((snapshot.total_value - agent.initial_capital) / agent.initial_capital * 100);
+            return returnPct;
+        });
+
+        datasets.push({
+            label: getDisplayName(agentName),
+            data: data,
+            borderColor: colors[colorIndex % colors.length],
+            backgroundColor: colors[colorIndex % colors.length] + '20',
+            borderWidth: 2,
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 5
+        });
+
+        colorIndex++;
+    }
+
+    // 获取日期标签
+    const firstAgent = Object.values(globalAgentData)[0];
+    const dates = Object.keys(firstAgent.daily_snapshots || {}).sort();
+    const labels = dates.map(date => formatDate(date));
+
+    if (chart) {
+        chart.destroy();
+    }
+
+    chart = new Chart(ctx, {
         type: 'line',
-        data: { datasets },
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top',
-                    labels: {
-                        font: {
-                            size: 14,
-                            weight: '500'
-                        },
-                        usePointStyle: true,
-                        padding: 15
-                    }
+                    position: 'top'
                 },
                 tooltip: {
+                    mode: 'index',
+                    intersect: false,
                     callbacks: {
                         label: function(context) {
-                            return `${context.dataset.label}: ¥${formatNumber(context.parsed.y)}`;
+                            return `${context.dataset.label}: ${context.parsed.y >= 0 ? '+' : ''}${context.parsed.y.toFixed(2)}%`;
                         }
-                    },
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleFont: { size: 14 },
-                    bodyFont: { size: 13 },
-                    padding: 12
+                    }
                 }
             },
             scales: {
-                x: {
-                    type: 'category',
-                    ticks: {
-                        maxTicksLimit: 10,
-                        font: { size: 12 }
-                    }
-                },
                 y: {
-                    type: 'linear',
+                    beginAtZero: false,
                     ticks: {
                         callback: function(value) {
-                            return '¥' + formatNumber(value);
-                        },
-                        font: { size: 12 }
+                            return value.toFixed(1) + '%';
+                        }
+                    },
+                    grid: {
+                        color: '#e2e8f0'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
                     }
                 }
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
             }
         }
     });
+
+    // 设置agent selector
+    const agentSelector = document.getElementById('agent-selector');
+    agentSelector.innerHTML = '<option value="all">所有AI模型</option>';
+    for (const agentName of Object.keys(globalAgentData)) {
+        const option = document.createElement('option');
+        option.value = agentName;
+        option.textContent = getDisplayName(agentName);
+        agentSelector.appendChild(option);
+    }
+
+    // 监听选择变化
+    agentSelector.addEventListener('change', (e) => {
+        const selectedAgent = e.target.value;
+        if (selectedAgent === 'all') {
+            chart.data.datasets.forEach(dataset => dataset.hidden = false);
+        } else {
+            chart.data.datasets.forEach(dataset => {
+                dataset.hidden = dataset.label !== getDisplayName(selectedAgent);
+            });
+        }
+        chart.update();
+    });
 }
 
-// 渲染Agent详情卡片
-function renderAgentsDetails() {
-    const container = document.getElementById('agents-details');
-    container.innerHTML = '';
+// 渲染排行榜
+function renderRankings() {
+    const rankingsList = document.getElementById('rankings-list');
 
-    Object.entries(agentsData).forEach(([name, data], index) => {
-        const summary = data.summary;
-        const returnClass = summary.total_return_pct >= 0 ? 'positive' : 'negative';
+    // 计算排名
+    const rankings = Object.entries(globalAgentData).map(([agentName, agent]) => {
+        const dailyValues = Object.values(agent.daily_snapshots || {});
+        let returnPct = 0;
+        let finalValue = agent.initial_capital;
 
-        const card = document.createElement('div');
-        card.className = 'agent-card';
-        card.style.borderTopColor = COLORS[index % COLORS.length];
-        card.innerHTML = `
-            <div class="agent-header">
-                <div class="agent-name">${data.agent_name}</div>
-                <div class="agent-model">${data.model_name}</div>
+        if (dailyValues.length > 0) {
+            const lastValue = dailyValues[dailyValues.length - 1];
+            finalValue = lastValue.total_value;
+            returnPct = ((finalValue - agent.initial_capital) / agent.initial_capital * 100);
+        }
+
+        return {
+            name: agentName,
+            displayName: getDisplayName(agentName),
+            return: returnPct,
+            finalValue: finalValue,
+            trades: agent.trade_history ? agent.trade_history.length : 0
+        };
+    }).sort((a, b) => b.return-a.return);
+
+    rankingsList.innerHTML = '';
+    rankings.forEach((agent, index) => {
+        const rank = index + 1;
+        const item = document.createElement('div');
+        item.className = `ranking-item rank-${rank <= 3 ? rank : 'other'}`;
+
+        item.innerHTML = `
+            <div class="rank-badge rank-${rank <= 3 ? rank : 'other'}">#${rank}</div>
+            <div class="ranking-info">
+                <div class="ranking-name">${agent.displayName}</div>
+                <div class="ranking-model">DeepSeek V3</div>
             </div>
-            <div class="agent-stats">
-                <div class="agent-stat">
-                    <div class="agent-stat-label">收益率</div>
-                    <div class="agent-stat-value ${returnClass} highlight">
-                        ${summary.total_return_pct >= 0 ? '+' : ''}${summary.total_return_pct.toFixed(2)}%
-                    </div>
-                </div>
-                <div class="agent-stat">
-                    <div class="agent-stat-label">最终资产</div>
-                    <div class="agent-stat-value">
-                        ¥${formatNumber(summary.total_assets)}
-                    </div>
-                </div>
-                <div class="agent-stat">
-                    <div class="agent-stat-label">盈亏金额</div>
-                    <div class="agent-stat-value ${returnClass}">
-                        ${summary.total_profit_loss >= 0 ? '+' : ''}¥${formatNumber(Math.abs(summary.total_profit_loss))}
-                    </div>
-                </div>
-                <div class="agent-stat">
-                    <div class="agent-stat-label">交易次数</div>
-                    <div class="agent-stat-value">${summary.trades_count}</div>
-                </div>
-                <div class="agent-stat">
-                    <div class="agent-stat-label">当前持仓</div>
-                    <div class="agent-stat-value">${summary.positions_count}只</div>
-                </div>
-                <div class="agent-stat">
-                    <div class="agent-stat-label">剩余现金</div>
-                    <div class="agent-stat-value">
-                        ¥${formatNumber(summary.cash)}
-                    </div>
-                </div>
+            <div class="ranking-return ${agent.return >= 0 ? 'positive' : 'negative'}">
+                ${agent.return >= 0 ? '+' : ''}${agent.return.toFixed(2)}%
             </div>
         `;
 
-        container.appendChild(card);
+        rankingsList.appendChild(item);
     });
 }
 
-// 设置事件监听
-function setupEventListeners() {
-    // 图表比例切换
-    document.getElementById('linear-scale')?.addEventListener('change', (e) => {
-        if (performanceChart) {
-            performanceChart.options.scales.y.type = e.target.checked ? 'linear' : 'logarithmic';
-            performanceChart.update();
-        }
+// 设置交易记录列表
+function setupTradesList() {
+    const tradeAgentSelector = document.getElementById('trade-agent-selector');
+    const tradesList = document.getElementById('trades-list');
+
+    // 填充agent选择器
+    tradeAgentSelector.innerHTML = '';
+    for (const agentName of Object.keys(globalAgentData)) {
+        const option = document.createElement('option');
+        option.value = agentName;
+        option.textContent = getDisplayName(agentName);
+        tradeAgentSelector.appendChild(option);
+    }
+
+    // 初始渲染第一个agent的交易记录
+    if (Object.keys(globalAgentData).length > 0) {
+        const firstAgent = Object.keys(globalAgentData)[0];
+        renderTrades(firstAgent);
+    }
+
+    // 监听选择变化
+    tradeAgentSelector.addEventListener('change', (e) => {
+        renderTrades(e.target.value);
     });
 }
 
-// 导出数据
-function exportData() {
-    const exportData = {
-        competition: competitionData,
-        agents: agentsData
-    };
+// 渲染交易记录
+function renderTrades(agentName) {
+    const tradesList = document.getElementById('trades-list');
+    const agent = globalAgentData[agentName];
 
-    const json = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `competition_results_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (!agent || !agent.trade_history || agent.trade_history.length === 0) {
+        tradesList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📭</div>
+                <div class="empty-state-text">暂无交易记录</div>
+            </div>
+        `;
+        return;
+    }
+
+    // 倒序显示（最新的在前面）
+    const trades = [...agent.trade_history].reverse();
+
+    tradesList.innerHTML = '';
+    trades.forEach(trade => {
+                const item = document.createElement('div');
+                item.className = 'trade-item';
+
+                const totalAmount = trade.price * trade.shares;
+
+                item.innerHTML = `
+            <div class="trade-header">
+                <div class="trade-action ${trade.action}">
+                    ${trade.action === 'buy' ? '📈 买入' : '📉 卖出'}
+                </div>
+                <div class="trade-date">${formatDateTime(trade.date, trade.timestamp)}</div>
+            </div>
+            <div class="trade-stock">
+                ${trade.name}
+                <span class="trade-stock-code">${trade.ts_code}</span>
+            </div>
+            <div class="trade-details">
+                <div class="trade-detail-item">
+                    <span class="trade-detail-label">价格:</span>
+                    <span class="trade-detail-value">¥${trade.price.toFixed(2)}</span>
+                </div>
+                <div class="trade-detail-item">
+                    <span class="trade-detail-label">数量:</span>
+                    <span class="trade-detail-value">${trade.shares}股</span>
+                </div>
+                <div class="trade-detail-item">
+                    <span class="trade-detail-label">金额:</span>
+                    <span class="trade-detail-value">¥${totalAmount.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
+            </div>
+            ${trade.reason ? `
+                <div class="trade-reason">
+                    <div class="trade-reason-label">决策原因</div>
+                    <div class="trade-reason-text">${trade.reason}</div>
+                </div>
+            ` : ''}
+        `;
+
+        tradesList.appendChild(item);
+    });
 }
 
-// 格式化日期
+// 工具函数：格式化日期
 function formatDate(dateStr) {
-    if (!dateStr) return '';
+    if (!dateStr || dateStr === '-') return '-';
+    // dateStr format: YYYYMMDD
     const year = dateStr.substring(0, 4);
     const month = dateStr.substring(4, 6);
     const day = dateStr.substring(6, 8);
-    return `${year}-${month}-${day}`;
+    return `${month}/${day}`;
 }
 
-// 格式化数字
-function formatNumber(num) {
-    if (typeof num !== 'number') return num;
-    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+// 工具函数：格式化日期时间
+function formatDateTime(dateStr, timeStr) {
+    const date = formatDate(dateStr);
+    if (!timeStr) return date;
+
+    // timeStr format: YYYY-MM-DD HH:MM:SS
+    const time = timeStr.split(' ')[1];
+    return `${date} ${time}`;
 }
 
 // 显示错误
 function showError(message) {
-    const sections = ['rankings-list', 'agents-details'];
-    sections.forEach(id => {
-        const container = document.getElementById(id);
-        if (container) {
-            container.innerHTML = `<div class="error">${message}</div>`;
-        }
-    });
+    const main = document.querySelector('main');
+    main.innerHTML = `
+        <div class="container-fluid">
+            <div class="error" style="background-color: #fef2f2; color: #ef4444; padding: 2rem; border-radius: 8px; border-left: 4px solid #ef4444; margin: 2rem 0;">
+                <h3>⚠️ ${message}</h3>
+                <p>请确保已运行模拟交易并生成数据文件</p>
+            </div>
+        </div>
+    `;
 }
