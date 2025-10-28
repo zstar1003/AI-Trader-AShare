@@ -7,8 +7,10 @@
 这是一个基于LangChain Agent框架的AI交易竞赛平台。不同的AI大模型（如DeepSeek, GPT-4, Claude等）作为交易Agent，通过调用真实的交易工具（Tools）在模拟的A股市场中进行实盘交易对比。
 
 每个AI Agent获得100万初始资金，在最近10个交易日的真实市场数据中：
-- 通过调用 `get_portfolio_status` 查看持仓
-- 通过调用 `get_available_stocks` 查看可交易股票
+- 通过调用 `get_portfolio_status` 查看持仓和资金状况
+- 通过调用 `get_available_stocks` 获取所有5000+支股票代码
+- 通过调用 `search_stocks` 按条件筛选潜在投资标的
+- 通过调用 `get_stock_price` 查询具体股票的详细信息
 - 通过调用 `buy_stock` / `sell_stock` 执行交易
 
 看哪个AI模型能获得最高收益！
@@ -147,18 +149,29 @@ Action: get_portfolio_status
 Action Input:
 Observation: 现金 ¥1,000,000.00...
 
-Thought: 再看看可交易的股票
-Action: get_available_stocks
-Action Input: {"limit": 20}
-Observation: 1. 农业银行 (601288.SH)...
+Thought: 我想筛选一些涨幅较大的股票
+Action: search_stocks
+Action Input: {"min_change": 3.0, "max_change": 9.9, "limit": 20}
+Observation: 找到 20 只符合条件的股票:
+1. 贵州茅台 (600519.SH)
+   价格: 1688.50 RMB, 涨跌: +5.23%, 成交量: 12,345,678
+...
 
-Thought: 我决定买入农业银行
+Thought: 我想了解贵州茅台的详细信息
+Action: get_stock_price
+Action Input: {"ts_code": "600519.SH"}
+Observation: 股票价格 (2025-10-28):
+代码: 600519.SH
+开盘: 1680.00 RMB
+最高: 1690.00 RMB...
+
+Thought: 我决定买入贵州茅台
 Action: buy_stock
-Action Input: {"ts_code": "601288.SH", "shares": 10000, "reason": "..."}
-Observation: 买入成功! 股票: 农业银行...
+Action Input: {"ts_code": "600519.SH", "shares": 500, "reason": "涨势良好，成交量放大"}
+Observation: 买入成功! 股票: 600519.SH...
 
 Thought: 交易完成
-Final Answer: 已买入农业银行10000股...
+Final Answer: 已买入贵州茅台500股...
 ```
 
 ## 添加新的AI模型
@@ -185,13 +198,14 @@ competition.register_agent(YourModelAgent())
 
 ## 可用交易工具
 
-| 工具名称 | 功能 | 参数 |
-|---------|------|------|
-| `get_portfolio_status` | 获取投资组合状态 | 无 |
-| `get_available_stocks` | 获取可交易股票列表 | limit: int |
-| `get_stock_price` | 获取股票价格信息 | ts_code: str |
-| `buy_stock` | 买入股票 | ts_code, shares, reason |
-| `sell_stock` | 卖出股票 | ts_code, shares, reason |
+| 工具名称 | 功能 | 参数 | 说明 |
+|---------|------|------|------|
+| `get_portfolio_status` | 获取投资组合状态 | 无 | 查看持仓、资金、收益等信息 |
+| `get_available_stocks` | 获取所有可交易股票代码 | 无 | 返回全部5000+支股票代码列表 |
+| `search_stocks` | 按条件筛选股票 | min_change, max_change, min_price, max_price, min_volume, limit | 根据涨跌幅、价格区间、成交量等筛选 |
+| `get_stock_price` | 获取股票详细价格信息 | ts_code: str | 获取单只股票的完整价格数据 |
+| `buy_stock` | 买入股票 | ts_code, shares, reason | 执行买入操作 |
+| `sell_stock` | 卖出股票 | ts_code, shares, reason | 执行卖出操作 |
 
 ## 技术栈
 
@@ -253,21 +267,37 @@ Observation: 投资组合状态:
 - 持仓市值: ¥0.00
 ...
 
-Thought: 现在查看可交易的股票列表
-Action: get_available_stocks
-Action Input: {"limit": 10}
+Thought: 现在使用search_stocks筛选涨幅较大的股票
+Action: search_stocks
+Action Input: {"min_change": 3.0, "max_change": 9.9, "limit": 10}
 
-Observation: 可交易股票 (前10只):
-1. 农业银行 (601288.SH) - 银行
-   价格: ¥3.89, 涨跌: +0.52%
+Observation: 找到 10 只符合条件的股票:
+1. 贵州茅台 (600519.SH)
+   价格: 1688.50 RMB, 涨跌: +5.23%, 成交量: 12,345,678
+2. 宁德时代 (300750.SZ)
+   价格: 215.88 RMB, 涨跌: +4.12%, 成交量: 98,765,432
 ...
 
-Thought: 我决定买入农业银行
+Thought: 我想了解宁德时代的详细信息
+Action: get_stock_price
+Action Input: {"ts_code": "300750.SZ"}
+
+Observation: 股票价格 (2025-10-28):
+代码: 300750.SZ
+日期: 20251028
+开盘: 210.50 RMB
+最高: 218.00 RMB
+最低: 209.80 RMB
+收盘: 215.88 RMB
+成交量: 98,765,432
+
+Thought: 我决定买入宁德时代
 Action: buy_stock
-Action Input: {"ts_code": "601288.SH", "shares": 10000, "reason": "银行股估值低..."}
+Action Input: {"ts_code": "300750.SZ", "shares": 4000, "reason": "新能源龙头，涨势良好，成交量放大"}
 
 Observation: 买入成功!
-股票: 农业银行 (601288.SH)
+股票: 300750.SZ
+价格: 215.88 RMB
 ...
 
 > Finished chain.

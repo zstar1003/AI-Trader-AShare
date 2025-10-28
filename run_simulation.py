@@ -104,9 +104,21 @@ def simulate_trading(agent_name: str = "DeepSeek_Trader"):
 重要提醒:
 1. 你只能看到今天（{current_date}）及之前的数据
 2. 不能看到未来的数据
-3. 当前持仓信息和资金状况请使用 get_portfolio_status 工具获取
-4. 可用股票列表使用 get_available_stocks 工具获取
-5. 查询股票价格使用 get_stock_price 工具
+3. 初始资金: 1,000,000 RMB
+
+可用工具说明:
+- get_portfolio_status: 查看当前持仓、资金、收益等信息
+- get_available_stocks: 获取所有可交易股票代码列表（5000+只）
+- search_stocks: 按条件筛选股票（涨跌幅、价格区间、成交量等）
+- get_stock_price: 获取指定股票的详细价格信息
+- buy_stock: 买入股票
+- sell_stock: 卖出股票
+
+交易策略建议:
+1. 先查看当前持仓状态 (get_portfolio_status)
+2. 使用 search_stocks 筛选出符合条件的股票（如涨幅较大、跌幅较大、成交活跃等）
+3. 对感兴趣的股票使用 get_stock_price 获取详细信息
+4. 根据分析结果做出买入或卖出决策
 
 请分析市场并做出交易决策。如果发现好的投资机会就买入，如果持仓需要调整就卖出。
 """

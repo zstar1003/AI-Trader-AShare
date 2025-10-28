@@ -94,15 +94,13 @@ class TradingToolkit:
             return result
 
         @tool
-        def get_available_stocks(limit: int = 50) -> str:
+        def get_available_stocks() -> str:
             """
-            获取可交易的A股列表（有历史数据的股票）。
-
-            Args:
-                limit: 返回的股票数量，默认50只
+            获取所有可交易的A股代码列表（有历史数据的股票）。
+            返回所有股票代码，不包含价格信息。如需价格信息，请使用 get_stock_price 或 search_stocks 工具。
 
             Returns:
-                str: 股票列表信息
+                str: 所有股票代码列表
             """
             # 获取所有有JSON数据的股票
             all_stocks = self.market_data.get_all_stocks_from_json()
@@ -110,18 +108,96 @@ class TradingToolkit:
             if not all_stocks:
                 return "错误: 未找到可交易股票"
 
-            # 只返回前limit只
-            stocks = all_stocks[:limit]
+            result = f"可交易股票总数: {len(all_stocks)}只\n\n"
+            result += "所有股票代码:\n"
 
-            result = f"可交易股票 (共{len(all_stocks)}只，显示前{len(stocks)}只):\n\n"
+            # 分行显示，每行10个股票代码
+            for i in range(0, len(all_stocks), 10):
+                batch = all_stocks[i:i+10]
+                result += ", ".join(batch) + "\n"
 
-            for i, ts_code in enumerate(stocks, 1):
-                # 获取当前价格
+            result += "\n提示: 使用 search_stocks 工具可以按条件筛选股票（如涨跌幅、价格等）"
+            result += "\n提示: 使用 get_stock_price 工具可以获取具体股票的详细信息"
+
+            return result
+
+        @tool
+        def search_stocks(
+            min_change: float = None,
+            max_change: float = None,
+            min_price: float = None,
+            max_price: float = None,
+            min_volume: float = None,
+            limit: int = 100
+        ) -> str:
+            """
+            按条件搜索股票。可以根据涨跌幅、价格、成交量等条件筛选。
+
+            Args:
+                min_change: 最小涨跌幅(%)，如 -5.0 表示跌幅不超过5%
+                max_change: 最大涨跌幅(%)，如 5.0 表示涨幅不超过5%
+                min_price: 最低价格(RMB)
+                max_price: 最高价格(RMB)
+                min_volume: 最小成交量
+                limit: 最多返回多少只股票，默认100只
+
+            Returns:
+                str: 符合条件的股票列表
+            """
+            # 获取所有股票
+            all_stocks = self.market_data.get_all_stocks_from_json()
+
+            if not all_stocks:
+                return "错误: 未找到可交易股票"
+
+            # 筛选股票
+            matched_stocks = []
+            for ts_code in all_stocks:
                 price_data = self._get_stock_price(ts_code)
-                if price_data:
-                    result += f"{i}. {ts_code}\n"
-                    result += f"   价格: {price_data['close']:.2f} RMB, "
-                    result += f"涨跌: {price_data.get('change', 0):+.2f}%\n"
+                if not price_data:
+                    continue
+
+                # 检查条件
+                change = price_data.get('change', 0)
+                close = price_data['close']
+                volume = price_data.get('volume', 0)
+
+                # 应用过滤条件
+                if min_change is not None and change < min_change:
+                    continue
+                if max_change is not None and change > max_change:
+                    continue
+                if min_price is not None and close < min_price:
+                    continue
+                if max_price is not None and close > max_price:
+                    continue
+                if min_volume is not None and volume < min_volume:
+                    continue
+
+                matched_stocks.append({
+                    'ts_code': ts_code,
+                    'close': close,
+                    'change': change,
+                    'volume': volume
+                })
+
+                # 达到limit就停止
+                if len(matched_stocks) >= limit:
+                    break
+
+            if not matched_stocks:
+                return "未找到符合条件的股票"
+
+            # 按涨跌幅排序
+            matched_stocks.sort(key=lambda x: x['change'], reverse=True)
+
+            result = f"找到 {len(matched_stocks)} 只符合条件的股票:\n\n"
+
+            for i, stock in enumerate(matched_stocks, 1):
+                result += f"{i}. {stock['ts_code']}\n"
+                result += f"   价格: {stock['close']:.2f} RMB, "
+                result += f"涨跌: {stock['change']:+.2f}%, "
+                result += f"成交量: {stock['volume']:,.0f}\n"
 
             return result
 
