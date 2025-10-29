@@ -1,5 +1,5 @@
 """
-10天模拟交易 - 时间感知版本
+10天模拟交易 - 支持多Agent运行
 AI只能看到当前日期及之前的数据
 """
 import os
@@ -11,7 +11,7 @@ from datetime import datetime
 from core.market_data import MarketDataProvider
 from core.time_aware_engine import TimeAwareTradingEngine
 from tools.trading_tools import TradingToolkit
-from agents.llm_agents import DeepSeekAgent
+from agents.llm_agents import DeepSeekAgent, GLMAgent, KimiAgent, RingAgent
 
 load_dotenv()
 
@@ -31,15 +31,52 @@ def get_recent_trading_dates(n_days: int = 10):
     return dates[-n_days:]
 
 
-def simulate_trading(agent_name: str = "DeepSeek_Trader"):
+# Agent配置
+AVAILABLE_AGENTS = {
+    'deepseek': {
+        'class': DeepSeekAgent,
+        'name': 'DeepSeek_Trader',
+        'display_name': 'DeepSeek',
+        'enabled': True
+    },
+    'glm': {
+        'class': GLMAgent,
+        'name': 'GLM_Trader',
+        'display_name': 'GLM',
+        'enabled': True
+    },
+    'kimi': {
+        'class': KimiAgent,
+        'name': 'Kimi_Trader',
+        'display_name': 'Kimi',
+        'enabled': True
+    },
+    'ring': {
+        'class': RingAgent,
+        'name': 'Ring_Trader',
+        'display_name': 'Ring',
+        'enabled': True
+    }
+}
+
+
+def simulate_trading(agent_key: str):
     """
-    模拟10天交易
+    模拟单个Agent的10天交易
 
     Args:
-        agent_name: Agent名称
+        agent_key: Agent的key（如 'deepseek', 'gpt4' 等）
     """
+    agent_config = AVAILABLE_AGENTS.get(agent_key)
+    if not agent_config:
+        print(f"错误: 未找到Agent配置 '{agent_key}'")
+        return
+
+    agent_name = agent_config['name']
+    display_name = agent_config['display_name']
+
     print("=" * 80)
-    print(f"开始10天模拟交易 - {agent_name}")
+    print(f"开始10天模拟交易 - {display_name}")
     print("=" * 80)
 
     # 获取最近10个交易日
@@ -62,7 +99,12 @@ def simulate_trading(agent_name: str = "DeepSeek_Trader"):
     print(f"\n初始化完成: 起始日期 {start_date}, 初始资金 1,000,000 RMB")
 
     # 创建Agent
-    agent = DeepSeekAgent(name=agent_name)
+    try:
+        agent = agent_config['class'](name=display_name)
+    except ValueError as e:
+        print(f"错误: 无法创建Agent - {e}")
+        print(f"提示: 请在 .env 文件中配置相应的API密钥")
+        return
 
     # 创建Trading Toolkit
     toolkit = TradingToolkit(
@@ -93,7 +135,7 @@ def simulate_trading(agent_name: str = "DeepSeek_Trader"):
         print(f"  收益率: {summary['return_rate']:.2f}%")
 
         # Agent决策
-        print(f"\n{agent_name} 正在分析市场...")
+        print(f"\n{display_name} 正在分析市场...")
 
         # 创建提示词
         prompt = f"""
@@ -184,5 +226,85 @@ def simulate_trading(agent_name: str = "DeepSeek_Trader"):
     print(f"\n状态文件已保存: data/agent_data/{agent_name}_state.json")
 
 
+def simulate_all_agents(agent_keys=None):
+    """
+    运行多个Agent的模拟
+
+    Args:
+        agent_keys: Agent key列表，如果为None则运行所有enabled的Agent
+    """
+    if agent_keys is None:
+        # 运行所有enabled的Agent
+        agent_keys = [key for key, config in AVAILABLE_AGENTS.items() if config['enabled']]
+
+    if not agent_keys:
+        print("Error: No enabled agents")
+        print("\nAvailable Agents:")
+        for key, config in AVAILABLE_AGENTS.items():
+            status = "[ENABLED]" if config['enabled'] else "[DISABLED]"
+            print(f"  {key}: {config['display_name']} - {status}")
+        return
+
+    print(f"\nPreparing to run {len(agent_keys)} agent(s)")
+    print("Agent list:", ", ".join([AVAILABLE_AGENTS[k]['display_name'] for k in agent_keys]))
+    print()
+
+    for i, agent_key in enumerate(agent_keys, 1):
+        print(f"\n{'#' * 80}")
+        print(f"# Agent {i}/{len(agent_keys)}")
+        print(f"{'#' * 80}\n")
+
+        simulate_trading(agent_key)
+
+        # Agent之间的间隔
+        if i < len(agent_keys):
+            print("\n" + "-" * 80)
+            print("Waiting 5 seconds before next agent...")
+            print("-" * 80)
+            import time
+            time.sleep(5)
+
+    print("\n" + "=" * 80)
+    print("All agent simulations completed!")
+    print("=" * 80)
+    print(f"\nData files location: data/agent_data/")
+    print("Copy data to docs directory:")
+    print("  python scripts/copy_data_to_docs.py")
+
+
 if __name__ == "__main__":
-    simulate_trading("DeepSeek_Trader")
+    import argparse
+
+    parser = argparse.ArgumentParser(description='AI交易模拟 - 支持多Agent')
+    parser.add_argument('--agent', type=str, help='运行指定的Agent (deepseek/gpt4/claude/qwen3)')
+    parser.add_argument('--agents', type=str, help='运行多个Agent，逗号分隔 (例: deepseek,gpt4)')
+    parser.add_argument('--all', action='store_true', help='运行所有已启用的Agent')
+    parser.add_argument('--list', action='store_true', help='列出所有可用的Agent')
+
+    args = parser.parse_args()
+
+    if args.list:
+        print("Available Agents:")
+        print()
+        for key, config in AVAILABLE_AGENTS.items():
+            status = "[ENABLED]" if config['enabled'] else "[DISABLED]"
+            print(f"  {key:10} - {config['display_name']:15} {status}")
+            if not config['enabled']:
+                print(f"             Note: Requires API key in .env")
+        print()
+        print("Usage examples:")
+        print("  python run_simulation.py --agent deepseek")
+        print("  python run_simulation.py --agents deepseek,gpt4")
+        print("  python run_simulation.py --all")
+    elif args.all:
+        simulate_all_agents()
+    elif args.agents:
+        agent_keys = [k.strip() for k in args.agents.split(',')]
+        simulate_all_agents(agent_keys)
+    elif args.agent:
+        simulate_trading(args.agent)
+    else:
+        # 默认运行DeepSeek
+        print("Running DeepSeek Agent by default")
+        print("Use --help to see more options\n")
+        simulate_trading('deepseek')

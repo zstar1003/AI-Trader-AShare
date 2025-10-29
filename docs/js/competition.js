@@ -6,9 +6,9 @@ let chart = null;
 // 名称映射：将内部名称转换为显示名称
 const AGENT_NAME_MAP = {
     'DeepSeek_Trader': 'DeepSeek',
-    'GPT4_Trader': 'GPT-4',
-    'Claude_Trader': 'Claude',
-    // 可以继续添加更多映射
+    'GLM_Trader': 'GLM',
+    'Kimi_Trader': 'Kimi',
+    'Ring_Trader': 'Ring'
 };
 
 // 获取显示名称
@@ -25,8 +25,13 @@ document.addEventListener('DOMContentLoaded', async() => {
 // 加载Agent数据
 async function loadAgentData() {
     try {
-        // 尝试从多个可能的路径加载数据
-        const agentFiles = ['DeepSeek_Trader']; // 可以扩展更多agent
+        // 所有可能的Agent文件
+        const agentFiles = [
+            'DeepSeek_Trader',
+            'GLM_Trader',
+            'Kimi_Trader',
+            'Ring_Trader'
+        ];
 
         for (const agentName of agentFiles) {
             try {
@@ -44,6 +49,21 @@ async function loadAgentData() {
             } catch (e) {
                 console.warn(`Failed to load ${agentName}:`, e);
             }
+        }
+
+        // 加载上证指数数据
+        try {
+            let response = await fetch(`../data/index_benchmark.json`);
+            if (!response.ok) {
+                response = await fetch(`data/index_benchmark.json`);
+            }
+            if (response.ok) {
+                const indexData = await response.json();
+                window.indexBenchmark = indexData;
+                console.log('Loaded index benchmark data');
+            }
+        } catch (e) {
+            console.warn('Failed to load index benchmark:', e);
         }
 
         console.log('Loaded agent data:', Object.keys(globalAgentData));
@@ -147,6 +167,21 @@ function renderChart() {
         });
 
         colorIndex++;
+    }
+
+    // Add index benchmark line
+    if (window.indexBenchmark && window.indexBenchmark.daily_data) {
+        const benchmarkData = window.indexBenchmark.daily_data.map(d => d.return_pct);
+        datasets.push({
+            label: '上证指数 (基准)',
+            data: benchmarkData,
+            borderColor: '#000000',
+            backgroundColor: '#00000010',
+            borderWidth: 2.5,
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 5
+        });
     }
 
     // 获取日期标签
@@ -276,6 +311,31 @@ function renderRankings() {
 
         rankingsList.appendChild(item);
     });
+
+    // Add benchmark as reference at the bottom
+    if (window.indexBenchmark && window.indexBenchmark.daily_data) {
+        const benchmarkData = window.indexBenchmark.daily_data;
+        const benchmarkReturn = benchmarkData[benchmarkData.length - 1].return_pct;
+
+        const benchmarkItem = document.createElement('div');
+        benchmarkItem.className = 'ranking-item rank-other';
+        benchmarkItem.style.borderTop = '2px solid #e2e8f0';
+        benchmarkItem.style.marginTop = '8px';
+        benchmarkItem.style.opacity = '0.8';
+
+        benchmarkItem.innerHTML = `
+            <div class="rank-badge rank-other">📊</div>
+            <div class="ranking-info">
+                <div class="ranking-name">上证指数 (基准)</div>
+                <div class="ranking-model">Shanghai Composite</div>
+            </div>
+            <div class="ranking-return ${benchmarkReturn >= 0 ? 'positive' : 'negative'}">
+                ${benchmarkReturn >= 0 ? '+' : ''}${benchmarkReturn.toFixed(2)}%
+            </div>
+        `;
+
+        rankingsList.appendChild(benchmarkItem);
+    }
 }
 
 // 设置交易记录列表

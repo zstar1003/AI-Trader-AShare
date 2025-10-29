@@ -2,13 +2,15 @@
 Agents模块
 """
 from .base_agent import BaseTradingAgent, LLMTradingAgent
-from .llm_agents import DeepSeekAgent, GPT4Agent, ClaudeAgent, Qwen3Agent
+from agents.llm_agents import DeepSeekAgent, Qwen3Agent, GLMAgent, KimiAgent, RingAgent, StepAgent
 
 __all__ = [
     'BaseTradingAgent',
     'LLMTradingAgent',
     'DeepSeekAgent',
-    'GPT4Agent',
-    'ClaudeAgent',
-    'Qwen3Agent'
+    'Qwen3Agent',
+    'GLMAgent',
+    'KimiAgent',
+    'RingAgent',
+    'StepAgent'
 ]

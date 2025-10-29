@@ -13,7 +13,7 @@ def get_weather(city: str) -> str:
 llm = ChatOpenAI(
     base_url="https://api.siliconflow.cn/v1",
     api_key=os.getenv("SILICONFLOW_API_KEY"),
-    model="deepseek-ai/DeepSeek-V3.2-Exp",
+    model="Qwen/Qwen3-VL-235B-A22B-Instruct",
 )
 
 agent = create_agent(

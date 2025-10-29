@@ -1,0 +1,413 @@
+{
+  "agent_name": "Ring_Trader",
+  "initial_capital": 1000000.0,
+  "current_capital": 324524.7956999999,
+  "positions": {
+    "600519.SH": {
+      "shares": 100,
+      "avg_cost": 1462.0
+    },
+    "601318.SH": {
+      "shares": 1300,
+      "avg_cost": 57.9
+    },
+    "600036.SH": {
+      "shares": 3200,
+      "avg_cost": 41.98
+    },
+    "000001.SZ": {
+      "shares": 9100,
+      "avg_cost": 11.43
+    },
+    "002475.SZ": {
+      "shares": 3600,
+      "avg_cost": 60.11
+    }
+  },
+  "trade_history": [
+    {
+      "date": "20251015",
+      "timestamp": "2025-10-28 19:32:44",
+      "action": "buy",
+      "ts_code": "600519.SH",
+      "name": "600519.SH",
+      "price": 1462.0,
+      "shares": 200,
+      "reason": "行业龙头，技术面强势，成交量放大"
+    },
+    {
+      "date": "20251015",
+      "timestamp": "2025-10-28 19:35:25",
+      "action": "buy",
+      "ts_code": "000858.SZ",
+      "name": "000858.SZ",
+      "price": 122.07,
+      "shares": 1000,
+      "reason": "白酒行业龙头，技术形态良好，成交量放大"
+    },
+    {
+      "date": "20251015",
+      "timestamp": "2025-10-28 19:36:51",
+      "action": "buy",
+      "ts_code": "600887.SH",
+      "name": "600887.SH",
+      "price": 27.65,
+      "shares": 1000,
+      "reason": "乳制品行业龙头，估值合理，成交量活跃"
+    },
+    {
+      "date": "20251015",
+      "timestamp": "2025-10-28 19:39:02",
+      "action": "buy",
+      "ts_code": "600438.SH",
+      "name": "600438.SH",
+      "price": 24.37,
+      "shares": 2000,
+      "reason": "光伏行业龙头，新能源赛道前景广阔，技术面突破，成交量显著放大"
+    },
+    {
+      "date": "20251016",
+      "timestamp": "2025-10-28 19:44:54",
+      "action": "sell",
+      "ts_code": "600519.SH",
+      "name": "600519.SH",
+      "price": 1484.91,
+      "shares": 100,
+      "reason": "持仓占比过高（29.7%），需分散风险并回收资金用于新机会"
+    },
+    {
+      "date": "20251017",
+      "timestamp": "2025-10-28 19:56:47",
+      "action": "sell",
+      "ts_code": "600438.SH",
+      "name": "600438.SH",
+      "price": 23.6,
+      "shares": 1000,
+      "reason": "止损操作，减少亏损敞口"
+    },
+    {
+      "date": "20251017",
+      "timestamp": "2025-10-28 20:01:45",
+      "action": "sell",
+      "ts_code": "600438.SH",
+      "name": "600438.SH",
+      "price": 23.6,
+      "shares": 1000,
+      "reason": "止损操作，亏损幅度较大且流动性好"
+    },
+    {
+      "date": "20251017",
+      "timestamp": "2025-10-28 20:03:29",
+      "action": "sell",
+      "ts_code": "600887.SH",
+      "name": "600887.SH",
+      "price": 27.35,
+      "shares": 500,
+      "reason": "减仓控制风险，保留部分仓位观察"
+    },
+    {
+      "date": "20251020",
+      "timestamp": "2025-10-28 20:20:14",
+      "action": "sell",
+      "ts_code": "000858.SZ",
+      "name": "000858.SZ",
+      "price": 120.46,
+      "shares": 500,
+      "reason": "止损并调整持仓结构"
+    },
+    {
+      "date": "20251020",
+      "timestamp": "2025-10-28 20:21:21",
+      "action": "buy",
+      "ts_code": "601318.SH",
+      "name": "601318.SH",
+      "price": 57.9,
+      "shares": 1300,
+      "reason": "价值低估，保险行业龙头，技术面有反弹迹象"
+    },
+    {
+      "date": "20251021",
+      "timestamp": "2025-10-28 20:35:46",
+      "action": "sell",
+      "ts_code": "000858.SZ",
+      "name": "000858.SZ",
+      "price": 120.52,
+      "shares": 500,
+      "reason": "技术面走弱，跌破20日均线，止损离场"
+    },
+    {
+      "date": "20251021",
+      "timestamp": "2025-10-28 20:35:46",
+      "action": "sell",
+      "ts_code": "600887.SH",
+      "name": "600887.SH",
+      "price": 27.41,
+      "shares": 500,
+      "reason": "业绩不及预期，股价持续下行，止损离场"
+    },
+    {
+      "date": "20251021",
+      "timestamp": "2025-10-28 20:35:46",
+      "action": "buy",
+      "ts_code": "600036.SH",
+      "name": "600036.SH",
+      "price": 41.98,
+      "shares": 3200,
+      "reason": "银行股估值修复，ROE稳定，突破平台整理"
+    },
+    {
+      "date": "20251021",
+      "timestamp": "2025-10-28 20:35:46",
+      "action": "buy",
+      "ts_code": "000001.SZ",
+      "name": "000001.SZ",
+      "price": 11.43,
+      "shares": 9100,
+      "reason": "零售银行龙头，资产质量改善，量价齐升"
+    },
+    {
+      "date": "20251022",
+      "timestamp": "2025-10-28 21:14:48",
+      "action": "buy",
+      "ts_code": "002475.SZ",
+      "name": "002475.SZ",
+      "price": 60.11,
+      "shares": 4100,
+      "reason": "放量突破压力位，短期趋势强劲，符合技术买入信号"
+    },
+    {
+      "date": "20251027",
+      "timestamp": "2025-10-28 22:51:30",
+      "action": "sell",
+      "ts_code": "002475.SZ",
+      "name": "002475.SZ",
+      "price": 65.4,
+      "shares": 500,
+      "reason": "部分获利了结，控制单一标的持仓比例"
+    }
+  ],
+  "daily_snapshots": {
+    "20251015": {
+      "capital": 508992.74199999997,
+      "positions_value": 490860.0,
+      "total_value": 999852.742,
+      "positions": {
+        "600519.SH": {
+          "shares": 200,
+          "avg_cost": 1462.0
+        },
+        "000858.SZ": {
+          "shares": 1000,
+          "avg_cost": 122.07
+        },
+        "600887.SH": {
+          "shares": 1000,
+          "avg_cost": 27.65
+        },
+        "600438.SH": {
+          "shares": 2000,
+          "avg_cost": 24.37
+        }
+      }
+    },
+    "20251016": {
+      "capital": 657290.7037,
+      "positions_value": 348721.0,
+      "total_value": 1006011.7037,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "000858.SZ": {
+          "shares": 1000,
+          "avg_cost": 122.07
+        },
+        "600887.SH": {
+          "shares": 1000,
+          "avg_cost": 27.65
+        },
+        "600438.SH": {
+          "shares": 2000,
+          "avg_cost": 24.37
+        }
+      }
+    },
+    "20251017": {
+      "capital": 718085.6686999998,
+      "positions_value": 280245.0,
+      "total_value": 998330.6686999998,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "000858.SZ": {
+          "shares": 1000,
+          "avg_cost": 122.07
+        },
+        "600887.SH": {
+          "shares": 500,
+          "avg_cost": 27.65
+        }
+      }
+    },
+    "20251020": {
+      "capital": 702944.7886999998,
+      "positions_value": 295028.0,
+      "total_value": 997972.7886999998,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "000858.SZ": {
+          "shares": 500,
+          "avg_cost": 122.07
+        },
+        "600887.SH": {
+          "shares": 500,
+          "avg_cost": 27.65
+        },
+        "601318.SH": {
+          "shares": 1300,
+          "avg_cost": 57.9
+        }
+      }
+    },
+    "20251021": {
+      "capital": 538392.2409999999,
+      "positions_value": 460079.0,
+      "total_value": 998471.2409999999,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "601318.SH": {
+          "shares": 1300,
+          "avg_cost": 57.9
+        },
+        "600036.SH": {
+          "shares": 3200,
+          "avg_cost": 41.98
+        },
+        "000001.SZ": {
+          "shares": 9100,
+          "avg_cost": 11.43
+        }
+      }
+    },
+    "20251022": {
+      "capital": 291867.3056999999,
+      "positions_value": 707066.0,
+      "total_value": 998933.3056999999,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "601318.SH": {
+          "shares": 1300,
+          "avg_cost": 57.9
+        },
+        "600036.SH": {
+          "shares": 3200,
+          "avg_cost": 41.98
+        },
+        "000001.SZ": {
+          "shares": 9100,
+          "avg_cost": 11.43
+        },
+        "002475.SZ": {
+          "shares": 4100,
+          "avg_cost": 60.11
+        }
+      }
+    },
+    "20251023": {
+      "capital": 291867.3056999999,
+      "positions_value": 710748.0,
+      "total_value": 1002615.3056999999,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "601318.SH": {
+          "shares": 1300,
+          "avg_cost": 57.9
+        },
+        "600036.SH": {
+          "shares": 3200,
+          "avg_cost": 41.98
+        },
+        "000001.SZ": {
+          "shares": 9100,
+          "avg_cost": 11.43
+        },
+        "002475.SZ": {
+          "shares": 4100,
+          "avg_cost": 60.11
+        }
+      }
+    },
+    "20251024": {
+      "capital": 291867.3056999999,
+      "positions_value": 721711.0,
+      "total_value": 1013578.3056999999,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "601318.SH": {
+          "shares": 1300,
+          "avg_cost": 57.9
+        },
+        "600036.SH": {
+          "shares": 3200,
+          "avg_cost": 41.98
+        },
+        "000001.SZ": {
+          "shares": 9100,
+          "avg_cost": 11.43
+        },
+        "002475.SZ": {
+          "shares": 4100,
+          "avg_cost": 60.11
+        }
+      }
+    },
+    "20251027": {
+      "capital": 324524.7956999999,
+      "positions_value": 692476.0,
+      "total_value": 1017000.7956999999,
+      "positions": {
+        "600519.SH": {
+          "shares": 100,
+          "avg_cost": 1462.0
+        },
+        "601318.SH": {
+          "shares": 1300,
+          "avg_cost": 57.9
+        },
+        "600036.SH": {
+          "shares": 3200,
+          "avg_cost": 41.98
+        },
+        "000001.SZ": {
+          "shares": 9100,
+          "avg_cost": 11.43
+        },
+        "002475.SZ": {
+          "shares": 3600,
+          "avg_cost": 60.11
+        }
+      }
+    }
+  },
+  "last_update": "2025-10-28 22:52:02",
+  "simulation_start_date": "20251015",
+  "simulation_current_date": "20251028"
+}
