@@ -124,11 +124,11 @@ header {
 }
 
 .stat-value.positive {
-    color: #10b981;
+    color: #ef4444;
 }
 
 .stat-value.negative {
-    color: #ef4444;
+    color: #10b981;
 }
 
 /* Main Layout - 左右布局 */
@@ -399,11 +399,11 @@ header {
 }
 
 .ranking-return.positive {
-    color: var(--success-color);
+    color: #ef4444;
 }
 
 .ranking-return.negative {
-    color: var(--danger-color);
+    color: #10b981;
 }
 
 /* Trades List - 右侧交易记录 */
@@ -494,11 +494,11 @@ header {
 }
 
 .position-profit.positive {
-    color: var(--success-color);
+    color: #ef4444;
 }
 
 .position-profit.negative {
-    color: var(--danger-color);
+    color: #10b981;
 }
 
 .position-details {
@@ -522,11 +522,11 @@ header {
 }
 
 .position-detail-value.positive {
-    color: var(--success-color);
+    color: #ef4444;
 }
 
 .position-detail-value.negative {
-    color: var(--danger-color);
+    color: #10b981;
 }
 
 .trade-header {

@@ -147,8 +147,12 @@ function updateStats() {
     // 计算交易周期
     const firstAgent = Object.values(globalAgentData)[0];
     const startDate = firstAgent.simulation_start_date || '-';
-    const currentDate = firstAgent.simulation_current_date || '-';
-    const tradingPeriod = formatTradingPeriod(startDate, currentDate);
+
+    // 使用最后一个快照的日期作为结束日期
+    const snapshotDates = Object.keys(firstAgent.daily_snapshots || {}).sort();
+    const endDate = snapshotDates.length > 0 ? snapshotDates[snapshotDates.length - 1] : '-';
+
+    const tradingPeriod = formatTradingPeriod(startDate, endDate);
 
     document.getElementById('agents-count').textContent = agentCount;
     document.getElementById('trading-period').textContent = tradingPeriod;
@@ -168,11 +172,14 @@ function formatTradingPeriod(startDate, endDate) {
     const start = formatDate(startDate);
     const end = formatDate(endDate);
 
-    // 计算天数
-    const days = Object.values(globalAgentData)[0].daily_snapshots ?
-        Object.keys(Object.values(globalAgentData)[0].daily_snapshots).length : 0;
+    // 计算交易日数量 (实际数据中的交易日数量)
+    const snapshots = Object.values(globalAgentData)[0].daily_snapshots;
+    const tradingDays = snapshots ? Object.keys(snapshots).length : 0;
 
-    return `${days}天 (${start} - ${end})`;
+    // 显示为交易日数量 - 2 (可能不包含首尾或其他业务逻辑)
+    const displayDays = tradingDays > 2 ? tradingDays - 2 : tradingDays;
+
+    return `${displayDays}天 (${start} - ${end})`;
 }
 
 // 渲染图表
@@ -657,7 +664,7 @@ function renderPositions(agentName) {
                     <span class="position-stock-code">${ts_code}</span>
                 </div>
                 <div class="position-profit ${profit >= 0 ? 'positive' : 'negative'}">
-                    ${profit >= 0 ? '+' : ''}${profitRate.toFixed(2)}%
+                    ${profit >= 0 ? '+' : ''}¥${profit.toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                 </div>
             </div>
             <div class="position-details">
