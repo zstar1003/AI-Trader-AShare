@@ -74,29 +74,63 @@
                             <canvas id="performance-chart"></canvas>
                         </div>
                     </div>
-
-                    <!-- 排行榜 -->
-                    <div class="rankings-card">
-                        <div class="card-header">
-                            <h2>🏆 AI排行榜</h2>
-                        </div>
-                        <div id="rankings-list" class="rankings-list">
-                            <!-- 动态生成 -->
-                        </div>
-                    </div>
                 </div>
 
-                <!-- 右侧：交易记录区 -->
+                <!-- 右侧：多功能面板 -->
                 <div class="right-panel">
-                    <div class="trades-card">
-                        <div class="card-header">
-                            <h2>💼 交易决策记录</h2>
-                            <select id="trade-agent-selector" class="agent-select">
-                                <!-- 动态生成 -->
-                            </select>
+                    <div class="right-panel-card">
+                        <!-- 切换按钮 -->
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" data-tab="rankings">
+                                <span class="tab-text">AI排行榜</span>
+                            </button>
+                            <button class="tab-btn" data-tab="trades">
+                                <span class="tab-text">交易记录</span>
+                            </button>
+                            <button class="tab-btn" data-tab="positions">
+                                <span class="tab-text">持仓情况</span>
+                            </button>
                         </div>
-                        <div id="trades-list" class="trades-list">
-                            <!-- 动态生成 -->
+
+                        <!-- 内容区域 -->
+                        <div class="tab-content">
+                            <!-- 排行榜 -->
+                            <div id="rankings-tab" class="tab-panel active">
+                                <div id="rankings-list" class="rankings-list">
+                                    <!-- 动态生成 -->
+                                </div>
+                            </div>
+
+                            <!-- 交易记录 -->
+                            <div id="trades-tab" class="tab-panel">
+                                <div class="panel-header">
+                                    <select id="trade-agent-selector" class="agent-select">
+                                        <!-- 动态生成 -->
+                                    </select>
+                                </div>
+                                <div id="trades-list" class="trades-list">
+                                    <!-- 动态生成 -->
+                                </div>
+                            </div>
+
+                            <!-- 持仓情况 -->
+                            <div id="positions-tab" class="tab-panel">
+                                <div class="panel-header">
+                                    <select id="position-agent-selector" class="agent-select">
+                                        <!-- 动态生成 -->
+                                    </select>
+                                </div>
+                                <div class="positions-content">
+                                    <div class="positions-chart-section">
+                                        <div class="positions-chart-container">
+                                            <canvas id="positions-pie-chart"></canvas>
+                                        </div>
+                                    </div>
+                                    <div id="positions-list" class="positions-list">
+                                        <!-- 动态生成 -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

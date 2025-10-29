@@ -146,13 +146,112 @@ header {
     gap: 24px;
 }
 
+.chart-card {
+    background-color: var(--bg-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
 /* Right Panel */
 .right-panel {
     position: sticky;
     top: 90px;
     height: fit-content;
-    max-height: calc(100vh - 110px);
+}
+
+.right-panel-card {
+    background-color: var(--bg-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Tab 切换按钮 */
+.tab-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+    background-color: var(--bg-secondary);
+}
+
+.tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tab-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.15);
+}
+
+.tab-btn.active {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #2563eb 100%);
+    border-color: var(--primary-color);
+    color: white;
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.tab-text {
+    font-weight: 600;
+}
+
+/* Tab 内容区 */
+.tab-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.tab-panel {
+    display: none;
+    height: 600px;
     overflow-y: auto;
+}
+
+.tab-panel.active {
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+}
+
+/* 滚动条样式 for tab panels */
+.tab-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.tab-panel::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.tab-panel::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.tab-panel::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }
 
 /* Card Styles */
@@ -183,7 +282,7 @@ header {
 /* Chart Styles */
 .chart-container {
     padding: 24px;
-    height: 400px;
+    height: 600px;
     position: relative;
 }
 
@@ -308,10 +407,9 @@ header {
 }
 
 /* Trades List - 右侧交易记录 */
-.trades-list {
+.trades-list,
+.positions-list {
     padding: 0;
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
 }
 
 .trade-item {
@@ -326,6 +424,109 @@ header {
 
 .trade-item:last-child {
     border-bottom: none;
+}
+
+/* Positions List */
+.positions-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.positions-chart-section {
+    flex-shrink: 0;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+}
+
+.positions-chart-container {
+    width: 100%;
+    height: 250px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.positions-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.position-item {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+.position-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+.position-item:last-child {
+    border-bottom: none;
+}
+
+.position-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.position-stock {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.position-stock-code {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    margin-left: 8px;
+}
+
+.position-profit {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.position-profit.positive {
+    color: var(--success-color);
+}
+
+.position-profit.negative {
+    color: var(--danger-color);
+}
+
+.position-details {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.position-detail-item {
+    font-size: 0.875rem;
+}
+
+.position-detail-label {
+    color: var(--text-secondary);
+    margin-right: 4px;
+}
+
+.position-detail-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.position-detail-value.positive {
+    color: var(--success-color);
+}
+
+.position-detail-value.negative {
+    color: var(--danger-color);
 }
 
 .trade-header {
@@ -465,23 +666,27 @@ footer p {
 
 /* Scrollbar Styles */
 .right-panel::-webkit-scrollbar,
-.trades-list::-webkit-scrollbar {
+.trades-list::-webkit-scrollbar,
+.positions-list::-webkit-scrollbar {
     width: 6px;
 }
 
 .right-panel::-webkit-scrollbar-track,
-.trades-list::-webkit-scrollbar-track {
+.trades-list::-webkit-scrollbar-track,
+.positions-list::-webkit-scrollbar-track {
     background: var(--bg-secondary);
 }
 
 .right-panel::-webkit-scrollbar-thumb,
-.trades-list::-webkit-scrollbar-thumb {
+.trades-list::-webkit-scrollbar-thumb,
+.positions-list::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 3px;
 }
 
 .right-panel::-webkit-scrollbar-thumb:hover,
-.trades-list::-webkit-scrollbar-thumb:hover {
+.trades-list::-webkit-scrollbar-thumb:hover,
+.positions-list::-webkit-scrollbar-thumb:hover {
     background: var(--text-muted);
 }
 

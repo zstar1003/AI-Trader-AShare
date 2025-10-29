@@ -3,11 +3,10 @@
 AI只能看到当前日期及之前的数据
 """
 import os
-import sys
-from dotenv import load_dotenv
+import time
 import tushare as ts
-from datetime import datetime
 
+from dotenv import load_dotenv
 from core.market_data import MarketDataProvider
 from core.time_aware_engine import TimeAwareTradingEngine
 from tools.trading_tools import TradingToolkit
@@ -190,7 +189,6 @@ def simulate_trading(agent_key: str):
             print(f"\n今日无交易")
 
         # 小延迟（避免API限流）
-        import time
         time.sleep(1)
 
     # 模拟结束
